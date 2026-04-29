@@ -13,6 +13,8 @@
 # USER nonroot:nonroot
 # ENTRYPOINT ["/go-server"]
 
+# syntax=docker/dockerfile:1.7
+
 FROM golang:1.26-alpine AS builder
 
 RUN apk add --no-cache protobuf protobuf-dev
@@ -128,9 +130,20 @@ RUN curl -fsSL -o /tmp/sonar-scanner.zip "https://binaries.sonarsource.com/Distr
     rm -f /tmp/sonar-scanner.zip /tmp/dependency-check.zip && \
     chmod +x /opt/dependency-check/bin/dependency-check.sh
 
-# Pre-download OWASP Dependency-Check NVD database to avoid timeout at runtime
-RUN mkdir -p /root/.m2/repository/org/owasp/dependency-check/data && \
-    /opt/dependency-check/bin/dependency-check.sh --updateonly --data /root/.m2/repository/org/owasp/dependency-check/data 2>&1 || \
+# Pre-download the NVD database. Use a BuildKit secret when the CI pipeline provides one.
+RUN --mount=type=secret,id=nvd_api_key \
+    mkdir -p /root/.m2/repository/org/owasp/dependency-check/data && \
+    NVD_API_KEY="$(cat /run/secrets/nvd_api_key 2>/dev/null || true)" && \
+    if [ -n "$NVD_API_KEY" ]; then \
+      /opt/dependency-check/bin/dependency-check.sh \
+        --updateonly \
+        --data /root/.m2/repository/org/owasp/dependency-check/data \
+        --nvdApiKey "$NVD_API_KEY" 2>&1; \
+    else \
+      /opt/dependency-check/bin/dependency-check.sh \
+        --updateonly \
+        --data /root/.m2/repository/org/owasp/dependency-check/data 2>&1; \
+    fi || \
     echo "Warning: Could not pre-download NVD database (will retry at runtime)"
 
 # Create cache directories with proper permissions

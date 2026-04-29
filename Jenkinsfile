@@ -19,6 +19,7 @@ pipeline {
 
     environment {
         DOCKER_CREDENTIALS_ID = 'DOKCERHUB-ID-CREDENTIALS'
+        NVD_API_KEY_CREDENTIALS_ID = 'nvd-api-key'
         BUILDER_NAME          = 'jenkins-builder'
         PRODUCTION_DEPLOYMENT_HOST = credentials('production-deployment-host')
         DEPLOYMENT_USER            = credentials('deployment-user')
@@ -127,6 +128,10 @@ pipeline {
                         credentialsId: env.DOCKER_CREDENTIALS_ID,
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
+                    ),
+                    string(
+                        credentialsId: env.NVD_API_KEY_CREDENTIALS_ID,
+                        variable: 'OWASP_NVD_API_KEY'
                     )
                 ]) {
                     sh '''#!/bin/bash
@@ -157,6 +162,7 @@ pipeline {
                                 --file    "${DOCKERFILES[$i]}" \
                                 --cache-from "type=registry,ref=$IMAGE_REF:cache" \
                                 --cache-to   "type=registry,ref=$IMAGE_REF:cache,mode=max" \
+                                --secret "id=nvd_api_key,env=OWASP_NVD_API_KEY" \
                                 --push \
                                 --tag "$IMAGE_REF:$TAG" \
                                 $EXTRA_TAGS \

@@ -42,6 +42,8 @@ services:
     build:
       context: .
       dockerfile: go-server/Dockerfile
+      secrets:
+        - nvd_api_key
     env_file:
       - ./go-server/.env
     environment:
@@ -81,8 +83,10 @@ services:
 
   sonarqube-worker:
     build:
-      context: ./go-server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: go-server/Dockerfile
+      secrets:
+        - nvd_api_key
     entrypoint: ["/sonarqube-worker"]
     env_file:
       - ./go-server/.env
@@ -124,8 +128,8 @@ services:
 
   fastapi-gateway:
     build:
-      context: ./fastapi-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: fastapi-gateway/Dockerfile
     env_file:
       - ./fastapi-gateway/.env
     environment:
@@ -148,3 +152,7 @@ volumes:
   sonarqube_extensions:
   trivy_cache:
   owasp_cache:
+
+secrets:
+  nvd_api_key:
+    environment: OWASP_NVD_API_KEY
