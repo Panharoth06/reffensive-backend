@@ -128,49 +128,70 @@ pipeline {
                         credentialsId: env.DOCKER_CREDENTIALS_ID,
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
-                    ),
-                    string(
-                        credentialsId: env.NVD_API_KEY_CREDENTIALS_ID,
-                        variable: 'OWASP_NVD_API_KEY'
                     )
                 ]) {
-                    sh '''#!/bin/bash
-                        set -euo pipefail
+                    script {
+                        def buildAndPush = { String nvdBuildSecretArg ->
+                            withEnv(["NVD_BUILD_SECRET_ARG=${nvdBuildSecretArg}"]) {
+                                sh '''#!/bin/bash
+                                    set -euo pipefail
 
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                                    echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
 
-                        docker buildx inspect "$BUILDER_NAME" >/dev/null 2>&1 || \
-                            docker buildx create --name "$BUILDER_NAME" --driver docker-container
-                        docker buildx use "$BUILDER_NAME"
-                        docker buildx inspect --bootstrap
+                                    docker buildx inspect "$BUILDER_NAME" >/dev/null 2>&1 || \
+                                        docker buildx create --name "$BUILDER_NAME" --driver docker-container
+                                    docker buildx use "$BUILDER_NAME"
+                                    docker buildx inspect --bootstrap
 
-                        BRANCH=$(git rev-parse --abbrev-ref HEAD)
+                                    BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-                        IFS=',' read -ra NAMES        <<< "$SERVICE_NAMES"
-                        IFS=',' read -ra DOCKERFILES  <<< "$SERVICE_DOCKERFILES"
-                        IFS=',' read -ra CONTEXTS     <<< "$SERVICE_CONTEXTS"
-                        IFS=',' read -ra IMAGES       <<< "$SERVICE_IMAGES"
+                                    IFS=',' read -ra NAMES        <<< "$SERVICE_NAMES"
+                                    IFS=',' read -ra DOCKERFILES  <<< "$SERVICE_DOCKERFILES"
+                                    IFS=',' read -ra CONTEXTS     <<< "$SERVICE_CONTEXTS"
+                                    IFS=',' read -ra IMAGES       <<< "$SERVICE_IMAGES"
 
-                        for i in "${!NAMES[@]}"; do
-                            IMAGE_REF="$DOCKER_USER/${IMAGES[$i]}"
-                            echo "▶ Building ${NAMES[$i]} → $IMAGE_REF:$TAG"
+                                    for i in "${!NAMES[@]}"; do
+                                        IMAGE_REF="$DOCKER_USER/${IMAGES[$i]}"
+                                        echo "▶ Building ${NAMES[$i]} → $IMAGE_REF:$TAG"
 
-                            EXTRA_TAGS=""
-                            [ "$BRANCH" = "main" ] && EXTRA_TAGS="--tag $IMAGE_REF:latest"
+                                        EXTRA_TAGS=""
+                                        [ "$BRANCH" = "main" ] && EXTRA_TAGS="--tag $IMAGE_REF:latest"
 
-                            docker buildx build \
-                                --file    "${DOCKERFILES[$i]}" \
-                                --cache-from "type=registry,ref=$IMAGE_REF:cache" \
-                                --cache-to   "type=registry,ref=$IMAGE_REF:cache,mode=max" \
-                                --secret "id=nvd_api_key,env=OWASP_NVD_API_KEY" \
-                                --push \
-                                --tag "$IMAGE_REF:$TAG" \
-                                $EXTRA_TAGS \
-                                "${CONTEXTS[$i]}"
+                                        docker buildx build \
+                                            --file    "${DOCKERFILES[$i]}" \
+                                            --cache-from "type=registry,ref=$IMAGE_REF:cache" \
+                                            --cache-to   "type=registry,ref=$IMAGE_REF:cache,mode=max" \
+                                            ${NVD_BUILD_SECRET_ARG:+$NVD_BUILD_SECRET_ARG} \
+                                            --push \
+                                            --tag "$IMAGE_REF:$TAG" \
+                                            $EXTRA_TAGS \
+                                            "${CONTEXTS[$i]}"
 
-                            echo "✓ Pushed $IMAGE_REF:$TAG"
-                        done
-                    '''
+                                        echo "✓ Pushed $IMAGE_REF:$TAG"
+                                    done
+                                '''
+                            }
+                        }
+
+                        try {
+                            withCredentials([
+                                string(
+                                    credentialsId: env.NVD_API_KEY_CREDENTIALS_ID,
+                                    variable: 'OWASP_NVD_API_KEY'
+                                )
+                            ]) {
+                                buildAndPush('--secret=id=nvd_api_key,env=OWASP_NVD_API_KEY')
+                            }
+                        } catch (Exception err) {
+                            def message = err.getMessage() ?: ''
+                            if (!message.contains("Could not find credentials entry with ID '${env.NVD_API_KEY_CREDENTIALS_ID}'")) {
+                                throw err
+                            }
+
+                            echo "NVD credential '${env.NVD_API_KEY_CREDENTIALS_ID}' is unavailable; continuing without the build secret."
+                            buildAndPush('')
+                        }
+                    }
                 }
             }
         }
