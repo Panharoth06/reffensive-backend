@@ -6,6 +6,7 @@ import (
 	"testing"
 )
 
+//test runner args generation with and without NVD API key env vars
 func TestParseMapsVulnerabilities(t *testing.T) {
 	reportPath := filepath.Join(t.TempDir(), "dependency-check-report.json")
 	report := `{
