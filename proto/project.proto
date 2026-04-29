@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package project;
+
+option go_package = "go-server/gen/projectpb;projectpb";
+
+import "google/protobuf/timestamp.proto";
+
+service ProjectService {
+  rpc CreateProject(CreateProjectRequest) returns (ProjectResponse);
+  rpc GetProject(GetProjectRequest) returns (ProjectResponse);
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
+  rpc UpdateProject(UpdateProjectRequest) returns (ProjectResponse);
+  rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectResponse);
+}
+
+message CreateProjectRequest {
+  string name = 1;
+  string description = 2;
+  string user_id = 3;
+}
+
+message GetProjectRequest {
+  oneof project {
+    string project_id = 1;
+    string project_name = 2;
+  };
+  string user_id = 3;
+}
+
+message ListProjectsRequest {
+    string user_id = 1;
+}
+
+message ListProjectsResponse {
+  repeated ProjectResponse projects = 1;
+}
+
+message UpdateProjectRequest {
+  string project_id = 1;
+  string user_id = 2;
+  optional string name = 3;
+  optional string description = 4;
+}
+
+message DeleteProjectRequest {
+  string project_id = 1;
+  string user_id = 2;
+  bool cascade = 3;
+}
+
+message DeleteProjectResponse {
+  bool success = 1;
+}
+
+message ProjectResponse {
+  string project_id = 1;
+  string name = 2;
+  string description = 3;
+  string owner_id = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp last_modified = 6;
+}

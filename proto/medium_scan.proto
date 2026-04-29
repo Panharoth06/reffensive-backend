@@ -1,0 +1,296 @@
+syntax = "proto3";
+
+package mediumscan;
+
+option go_package = "go-server/gen/mediumscan;mediumscan";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+
+service MediumScanService {
+    rpc SubmitScan(MediumScanSubmitRequest) returns (MediumScanSubmitResponse);
+    rpc GetScanStatus(GetScanStatusRequest) returns (GetScanStatusResponse);
+    rpc GetStepStatus(GetStepStatusRequest) returns (GetStepStatusResponse);
+    rpc GetJobStatus(GetJobStatusRequest) returns (GetJobStatusResponse);
+    rpc StreamLogs(StreamLogsRequest) returns (stream LogChunk);
+    rpc GetResults(GetResultsRequest) returns (GetResultsResponse);
+    rpc GetParsedData(GetParsedDataRequest) returns (GetParsedDataResponse);
+    rpc CancelScan(CancelScanRequest) returns (CancelScanResponse);
+    rpc HealthCheck(google.protobuf.Empty) returns (MediumHealthResponse);
+}
+
+message MediumScanSubmitRequest {
+    string project_id = 1;
+    string target_id = 2;
+    string target_value = 3;
+    string tool_id = 4;
+    string tool_name = 5;
+    map<string, MediumOptionValue> tool_options = 6;
+    string idempotency_key = 7;
+    ExecutionMode execution_mode = 8;
+    repeated MediumScanStepRequest steps = 9;
+    int32 runtime_timeout_seconds = 10;
+}
+
+message MediumScanStepRequest {
+    string tool_id = 1;
+    string tool_name = 2;
+    map<string, MediumOptionValue> tool_options = 3;
+    int32 runtime_timeout_seconds = 4;
+}
+
+message MediumOptionValue {
+    oneof value {
+        int64 int_value = 1;
+        string str_value = 2;
+        bool bool_value = 3;
+    }
+}
+
+message MediumScanSubmitResponse {
+    string job_id = 1;
+    string step_id = 2;
+    ScanStatus status = 3;
+    bool is_idempotent_replay = 4;
+    string original_request_id = 5;
+    google.protobuf.Timestamp queued_at = 6;
+}
+
+message GetScanStatusRequest {
+    string scan_id = 1;
+}
+
+message GetScanStatusResponse {
+    string step_id = 1;
+    string job_id = 2;
+    string tool_name = 3;
+    ScanStatus status = 4;
+    int64 exit_code = 5;
+    string error_message = 6;
+    google.protobuf.Timestamp queued_at = 7;
+    google.protobuf.Timestamp started_at = 8;
+    google.protobuf.Timestamp finished_at = 9;
+    int64 duration_ms = 10;
+    int32 findings_count = 11;
+    string raw_output_location = 12;
+    bool has_parsed_results = 13;
+}
+
+message GetStepStatusRequest {
+    string step_id = 1;
+}
+
+message GetStepStatusResponse {
+    string step_id = 1;
+    string job_id = 2;
+    string tool_name = 3;
+    ScanStatus status = 4;
+    int64 exit_code = 5;
+    string error_message = 6;
+    google.protobuf.Timestamp queued_at = 7;
+    google.protobuf.Timestamp started_at = 8;
+    google.protobuf.Timestamp finished_at = 9;
+    int64 duration_ms = 10;
+    int32 findings_count = 11;
+    string raw_output_location = 12;
+    bool has_parsed_results = 13;
+}
+
+message GetJobStatusRequest {
+    string job_id = 1;
+}
+
+message GetJobStatusResponse {
+    string job_id = 1;
+    string project_id = 2;
+    JobStatus status = 3;
+    int32 total_steps = 4;
+    int32 completed_steps = 5;
+    int32 failed_steps = 6;
+    int32 pending_steps = 7;
+    int32 total_findings = 8;
+    google.protobuf.Timestamp created_at = 9;
+    google.protobuf.Timestamp started_at = 10;
+    google.protobuf.Timestamp finished_at = 11;
+    repeated StepSummary steps = 12;
+}
+
+message StepSummary {
+    string step_id = 1;
+    string tool_name = 2;
+    int32 step_order = 3;
+    ScanStatus status = 4;
+    int32 findings_count = 5;
+    google.protobuf.Timestamp started_at = 6;
+    google.protobuf.Timestamp finished_at = 7;
+}
+
+message StreamLogsRequest {
+    string step_id = 1;
+    bool include_history = 2;
+    int32 history_limit = 3;
+}
+
+message LogChunk {
+    string step_id = 1;
+    string tool_name = 2;
+    string line = 3;
+    LogSource source = 4;
+    google.protobuf.Timestamp timestamp = 5;
+    int64 sequence_num = 6;
+    bool is_final_chunk = 7;
+    ScanStatus completion_status = 8;
+}
+
+message GetResultsRequest {
+    oneof scope {
+        string step_id = 1;
+        string job_id = 2;
+    }
+    ResultsFilter filter = 3;
+    Pagination pagination = 4;
+}
+
+message GetResultsResponse {
+    string scope_id = 1;
+    repeated Finding findings = 2;
+    Pagination pagination = 3;
+    int32 total_count = 4;
+    oneof raw_output {
+        bytes raw_output_inline = 5;
+        string raw_output_s3_url = 6;
+    }
+}
+
+message GetParsedDataRequest {
+    string step_id = 1;
+}
+
+message TableColumn {
+    string key = 1;
+    string label = 2;
+    string type = 3;
+    string description = 4;
+    bool default_visible = 5;
+    int32 order = 6;
+    bool known = 7;
+    map<string, string> render_hints = 8;
+}
+
+message GetParsedDataResponse {
+    string step_id = 1;
+    string job_id = 2;
+    string tool_name = 3;
+    string parse_method = 4;
+    int32 line_count = 5;
+    int32 findings_count = 6;
+    repeated string lines = 7;
+    repeated Finding findings = 8;
+    google.protobuf.Timestamp created_at = 9;
+    repeated TableColumn columns = 10;
+    repeated TableColumn discovered_columns = 11;
+    repeated google.protobuf.Struct data = 12;
+}
+
+message ResultsFilter {
+    repeated Severity severity_in = 1;
+    string host_contains = 2;
+    int32 port_eq = 3;
+}
+
+message Pagination {
+    int32 limit = 1;
+    int32 offset = 2;
+    string next_cursor = 3;
+    bool has_more = 4;
+}
+
+message CancelScanRequest {
+    string scan_id = 1;
+    string reason = 2;
+}
+
+message CancelScanResponse {
+    string scan_id = 1;
+    bool cancelled = 2;
+    string message = 3;
+    google.protobuf.Timestamp cancelled_at = 4;
+}
+
+message MediumHealthResponse {
+    HealthStatus status = 1;
+    int64 uptime_seconds = 2;
+    int32 active_scans = 3;
+    int32 queued_scans = 4;
+}
+
+enum ExecutionMode {
+    EXECUTION_MODE_UNSPECIFIED = 0;
+    EXECUTION_MODE_WEB = 1;
+    EXECUTION_MODE_CLI = 2;
+    EXECUTION_MODE_CICD = 3;
+}
+
+enum ScanStatus {
+    SCAN_STATUS_UNSPECIFIED = 0;
+    SCAN_STATUS_PENDING = 1;
+    SCAN_STATUS_QUEUED = 2;
+    SCAN_STATUS_RUNNING = 3;
+    SCAN_STATUS_COMPLETED = 4;
+    SCAN_STATUS_FAILED = 5;
+    SCAN_STATUS_CANCELLED = 6;
+    SCAN_STATUS_SKIPPED = 7;
+}
+
+enum JobStatus {
+    JOB_STATUS_UNSPECIFIED = 0;
+    JOB_STATUS_PENDING = 1;
+    JOB_STATUS_RUNNING = 2;
+    JOB_STATUS_COMPLETED = 3;
+    JOB_STATUS_FAILED = 4;
+    JOB_STATUS_CANCELLED = 5;
+    JOB_STATUS_PARTIAL = 6;
+}
+
+enum LogSource {
+    LOG_SOURCE_UNSPECIFIED = 0;
+    LOG_SOURCE_STDOUT = 1;
+    LOG_SOURCE_STDERR = 2;
+    LOG_SOURCE_SYSTEM = 3;
+}
+
+enum Severity {
+    SEVERITY_UNSPECIFIED = 0;
+    SEVERITY_INFO = 1;
+    SEVERITY_LOW = 2;
+    SEVERITY_MEDIUM = 3;
+    SEVERITY_HIGH = 4;
+    SEVERITY_CRITICAL = 5;
+}
+
+enum HealthStatus {
+    HEALTH_STATUS_UNSPECIFIED = 0;
+    HEALTH_STATUS_HEALTHY = 1;
+    HEALTH_STATUS_DEGRADED = 2;
+    HEALTH_STATUS_UNHEALTHY = 3;
+}
+
+message Finding {
+    string finding_id = 1;
+    string step_id = 2;
+    string job_id = 3;
+    string title = 4;
+    Severity severity = 5;
+    string fingerprint = 6;
+    string host = 7;
+    int32 port = 8;
+    string protocol = 9;
+    string url = 10;
+    string description = 11;
+    string remediation = 12;
+    repeated string references = 13;
+    map<string, string> metadata = 14;
+    map<string, string> tags = 15;
+    google.protobuf.Timestamp created_at = 16;
+}

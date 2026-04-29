@@ -1,0 +1,9 @@
+{
+  "project_id": "REPLACE_WITH_REAL_PROJECT_ID",
+  "target_value": "example.com",
+  "tool_name": "subfinder",
+  "tool_options": {
+    "timeout": 30,
+    "threads": 10
+  }
+}

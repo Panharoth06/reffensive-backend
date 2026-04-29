@@ -1,0 +1,4 @@
+{
+    "command": "subfinder -d nmap.org | naabu -nmap-cli \"-sV\"",
+    "project_id": "a7698bce-2d7b-4ba2-a1bf-62e756ac23c2"
+}

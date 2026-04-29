@@ -1,0 +1,18 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    schema: "internal/database/migrations"
+    queries: "internal/database/queries"
+    gen:
+      go:
+        package: "db"
+        out: "internal/database/sqlc"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_interface: true
+        emit_prepared_queries: false
+        overrides:
+          - db_type: uuid
+            go_type: github.com/google/uuid.UUID
+          - db_type: jsonb
+            go_type: encoding/json.RawMessage

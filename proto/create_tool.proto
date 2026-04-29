@@ -1,0 +1,180 @@
+syntax = "proto3";
+
+package tool;
+
+option go_package = "go-server/gen/tool;tool";
+
+import "google/protobuf/timestamp.proto";
+
+service ToolService {
+    rpc CreateTool     (CreateToolRequest)     returns (ToolResponse);
+    rpc GetTool        (GetToolRequest)        returns (ToolResponse);
+    rpc ListTools      (ListToolsRequest)      returns (ListToolsResponse);
+    rpc UpdateTool     (UpdateToolRequest)     returns (ToolResponse);
+    rpc SetToolActive  (SetToolActiveRequest)  returns (SetToolActiveResponse);
+    rpc ListQueuedBuildJobs (ListQueuedBuildJobsRequest) returns (ListQueuedBuildJobsResponse);
+    rpc UpdateBuildJobStatus (UpdateBuildJobStatusRequest) returns (BuildJob);
+    rpc FinishBuildJob (FinishBuildJobRequest) returns (BuildJob);
+    rpc UpdateToolImageRef (UpdateToolImageRefRequest) returns (ToolResponse);
+}
+
+enum BuildJobStatus {
+    BUILD_JOB_STATUS_UNSPECIFIED = 0;
+    QUEUED = 1;
+    RUNNING = 2;
+    SUCCEEDED = 3;
+    JOB_FAILED = 4;
+}
+
+// ─── Shared response ──────────────────────────────────────────────────────────
+message ToolResponse {
+    string tool_id = 1;
+    string category_name = 2;
+    string tool_name = 3;
+    string tool_description = 4;
+    string tool_long_description = 5;
+    string examples = 6;
+    string input_schema = 7;
+    string output_schema = 8;
+    string scan_config = 9;
+    string install_method = 10;
+    string version = 11;
+    string image_ref = 12;
+    string image_source = 13;
+    bool is_active = 14;
+    repeated string denied_options = 15;
+    ShadowOutputConfig shadow_output_config = 16;
+    google.protobuf.Timestamp created_at = 17;
+    google.protobuf.Timestamp updated_at = 18;
+    string parser_config = 19;
+}
+
+// ─── Shadow Output Configuration ──────────────────────────────────────────────
+message ShadowOutputFormat {
+    string transport = 1;
+    repeated string enable_flags = 2;
+    string path_flag = 3;
+    string parser = 4;
+    string path_mode = 5;
+    string file_extension = 6;
+}
+
+message ShadowOutputConfig {
+    string preferred_format = 1;
+    map<string, ShadowOutputFormat> formats = 2;
+    string default_path = 3;
+    string filename_template = 4;
+    int32 parse_timeout_seconds = 5;
+    bool fallback_to_stdout = 6;
+    bool is_streaming = 7;
+    string json_flag = 20;
+    string file_flag = 21;
+    repeated string alternative_formats = 22;
+    google.protobuf.Timestamp created_at = 30;
+    google.protobuf.Timestamp updated_at = 31;
+}
+
+// ─── Create ───────────────────────────────────────────────────────────────────
+message CreateToolRequest {
+    string category_name = 1;
+    string tool_name = 2;
+    string tool_description = 3;
+    string tool_long_description = 4;
+    string examples = 5;
+    string input_schema = 6;
+    string output_schema = 7;
+    string scan_config = 8;
+    string install_method = 9;
+    string version = 10;
+    string image_ref = 11;
+    string image_source = 12;
+    bool is_active = 13;
+    repeated string denied_options = 14;
+    ShadowOutputConfig shadow_output_config = 15;
+    string build_config_json = 16;
+    string parser_config = 17;
+}
+
+// ─── Get ──────────────────────────────────────────────────────────────────────
+message GetToolRequest {
+    string tool_id = 1;
+}
+
+// ─── List ─────────────────────────────────────────────────────────────────────
+message ListToolsRequest {
+    bool active_only = 1;
+    string category_name = 2;
+}
+
+message ListToolsResponse {
+    repeated ToolResponse tools = 1;
+}
+
+// ─── Update ───────────────────────────────────────────────────────────────────
+message UpdateToolRequest {
+    string tool_id = 1;
+    string category_name = 2;
+    string tool_name = 3;
+    string tool_description = 4;
+    string tool_long_description = 5;
+    string examples = 6;
+    string input_schema = 7;
+    string output_schema = 8;
+    string scan_config = 9;
+    string install_method = 10;
+    string version = 11;
+    string image_ref = 12;
+    string image_source = 13;
+    repeated string denied_options = 14;
+    ShadowOutputConfig shadow_output_config = 15;
+    string build_config_json = 16;
+    string parser_config = 17;
+}
+
+// ─── Soft delete (activate / deactivate) ─────────────────────────────────────
+message SetToolActiveRequest {
+    string tool_id = 1;
+    bool is_active = 2;
+}
+
+message SetToolActiveResponse {
+    string tool_id = 1;
+    bool is_active = 2;
+}
+
+message BuildJob {
+    string id = 1;
+    string tool_id = 2;
+    string install_method = 3;
+    string image_source = 4;
+    string build_jsonb = 5;
+    BuildJobStatus status = 6;
+    google.protobuf.Timestamp queued_at = 7;
+    google.protobuf.Timestamp started_at = 8;
+    google.protobuf.Timestamp finished_at = 9;
+    string error = 10;
+}
+
+message ListQueuedBuildJobsRequest {
+    int32 limit = 1;
+}
+
+message ListQueuedBuildJobsResponse {
+    repeated BuildJob jobs = 1;
+}
+
+message UpdateBuildJobStatusRequest {
+    string id = 1;
+    BuildJobStatus status = 2;
+}
+
+message FinishBuildJobRequest {
+    string id = 1;
+    BuildJobStatus status = 2;
+    string error = 3;
+}
+
+message UpdateToolImageRefRequest {
+    string id = 1;
+    string image_ref = 2;
+}

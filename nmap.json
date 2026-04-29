@@ -1,0 +1,161 @@
+{
+  "category_name": "Reconnaissance",
+  "tool_name": "nmap",
+  "tool_description": "Network discovery and service/version scanner",
+  "tool_long_description": "Nmap is a widely used network scanner for host discovery, port enumeration, and service/version detection. This tool definition captures XML shadow output so the backend can inject output flags internally and parse the generated report generically.",
+  "examples": [
+    {
+      "target": "scanme.nmap.org",
+      "ports": "22,80,443"
+    }
+  ],
+  "input_schema": {
+    "type": "object",
+    "pipeline_input": {
+      "multi_mode": "list_file",
+      "list_flag": "-iL",
+      "target_field": "target"
+    },
+    "fields": [
+      {
+        "key": "target",
+        "type": "string",
+        "required": true,
+        "description": "Target hostname, IP, CIDR, or range to scan"
+      },
+      {
+        "key": "ports",
+        "type": "string",
+        "required": false,
+        "flag": "-p",
+        "description": "Comma-separated list or ranges of ports to scan"
+      }
+    ]
+  },
+  "output_schema": {
+    "type": "array",
+    "fields": [
+      {
+        "key": "host",
+        "type": "string",
+        "label": "Host",
+        "finding_host": true
+      },
+
+      {
+        "key": "port",
+        "type": "integer",
+        "label": "Port"
+      },
+      {
+        "key": "state",
+        "type": "string",
+        "label": "State"
+      },
+      {
+        "key": "service",
+        "type": "string",
+        "label": "Service"
+      },
+      {
+        "key": "version",
+        "type": "string",
+        "label": "Version"
+      },
+      {
+        "key": "os",
+        "type": "string",
+        "label": "OS"
+      }
+    ]
+  },
+
+  "scan_config": {
+    "basic": {
+      "presets": [
+        {
+          "name": "top-ports",
+          "description": "Fast scan of common ports",
+          "flags": ["-F"]
+        },
+        {
+          "name": "full-scan",
+          "description": "Full port scan",
+          "flags": ["-p-"]
+        },
+        {
+          "name": "service-detect",
+          "description": "Run version detection against discovered ports",
+          "flags": ["-sV"]
+        },
+        {
+          "name": "os-detect",
+          "description": "Run OS detection against discovered ports",
+          "flags": ["-O"]
+        },
+        {
+          "name": "aggressive-scan",
+          "description": "Run aggressive scan against discovered ports",
+          "flags": ["-A"]
+        }
+      ]
+    },
+    "medium": {
+      "options": [
+        {
+          "flag": "-T",
+          "key": "timing_template",
+          "type": "integer",
+          "description": "Timing template from 0 to 5",
+          "required": false
+        },
+        {
+          "flag": "-Pn",
+          "key": "skip_host_discovery",
+          "type": "boolean",
+          "description": "Treat hosts as online and skip host discovery",
+          "required": false
+        }
+      ]
+    },
+    "advanced": {
+      "options": []
+    },
+    "runtime": {
+      "use_gvisor": false,
+      "cap_add": ["NET_RAW"]
+    }
+  },
+  "install_method": "docker",
+  "version": "7.98",
+  "image_ref": "instrumentisto/nmap:7.98",
+  "image_source": "dockerhub",
+  "is_active": true,
+  "denied_options": ["-iL", "-oN", "-oX", "-oG", "-oA", "-oS"],
+  "shadow_output_config": {
+    "preferred_format": "xml",
+    "formats": {
+      "xml": {
+        "transport": "file",
+        "path_flag": "-oX",
+        "parser": "xml",
+        "path_mode": "file",
+        "file_extension": ".xml"
+      }
+    },
+    "default_path": "/tmp/shadow/nmap",
+    "filename_template": "{job_id}_{step_id}_{tool_name}_{timestamp}",
+    "parse_timeout_seconds": 30,
+    "fallback_to_stdout": false,
+    "is_streaming": true
+  },
+  "parser_config": {
+    "type": "xml",
+    "field_mappings": {
+      "host": ["host"],
+      "title": ["service"]
+    },
+    "default_severity": "SEVERITY_INFO",
+    "fingerprint_fields": ["host", "port", "service"]
+  }
+}

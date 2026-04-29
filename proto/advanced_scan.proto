@@ -1,0 +1,497 @@
+syntax = "proto3";
+
+package advanced;
+
+option go_package = "go-server/gen/advanced;advanced";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+
+// ==================== Service Definition ====================
+service AdvancedScanService {
+    // ASYNC: Submit scan, returns immediately
+    rpc SubmitScan(SubmitScanRequest) returns (SubmitScanResponse);
+
+    // Status Queries
+    rpc GetStepStatus(GetStepStatusRequest) returns (GetStepStatusResponse);
+    rpc GetJobStatus(GetJobStatusRequest) returns (GetJobStatusResponse);
+
+    // Queue Status
+    rpc GetQueueStatus(QueueStatusRequest) returns (QueueStatusResponse);
+    rpc GetJobQueuePosition(JobQueuePositionRequest) returns (JobQueuePositionResponse);
+    rpc CancelQueuedJob(CancelQueuedJobRequest) returns (CancelQueuedJobResponse);
+
+    // Streaming
+    rpc StreamLogs(StreamLogsRequest) returns (stream LogChunk);
+
+    // Results
+    rpc GetResults(GetResultsRequest) returns (GetResultsResponse);
+    rpc GetParsedData(GetParsedDataRequest) returns (GetParsedDataResponse);
+
+    // Cancellation
+    rpc CancelStep(CancelStepRequest) returns (CancelStepResponse);
+    rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
+
+    // Health
+    rpc HealthCheck(google.protobuf.Empty) returns (HealthCheckResponse);
+}
+
+// ==================== SubmitScan ====================
+message SubmitScanRequest {
+    // Advisory only: if provided, must be a valid UUID, but the server always
+    // assigns its own DB-generated job_id. Provided values are validated and
+    // then discarded. Present for client-side correlation / logging only.
+    string job_id = 1;
+    string step_id = 2;
+
+    string tool_id = 3;
+    string project_id = 4;
+    // Optional when target_value is provided.
+    string target_id = 5;
+
+    // Optional. If omitted, backend generates one.
+    string idempotency_key = 6;
+
+    map<string, string> tool_args = 7;
+    repeated CustomFlag custom_flags = 8;
+
+    ExecutionConfig execution_config = 9;
+
+    // Shadow artifact write overrides. Only default_path and filename are read;
+    // all other ShadowOutputConfig fields are loaded from tool metadata at runtime.
+    ShadowOutputConfig shadow_config = 10;
+
+    ExecutionMode execution_mode = 11;
+
+    // reserved 12 — was requested_at (Timestamp). Never read by server; removed.
+    reserved 12;
+    reserved "requested_at";
+
+    // Preferred selector for frontend requests.
+    // If both tool_id and tool_name are provided, they must refer to the same tool.
+    string tool_name = 13;
+
+    // Ordered tool chain for advanced mode.
+    // If provided, backend converts this ordered list into dependent scan steps.
+    repeated ToolChainItem tools = 14;
+
+    // Preferred target selector for frontend requests (e.g., "scanme.nmap.org").
+    // Backend will reuse existing target in project by value, or create one if missing.
+    string target_value = 15;
+
+    // Optional Unix-style advanced scan command line, for example:
+    // "subfinder -d example.com | httpx -silent | naabu -p 80,443"
+    // Backend parses this into the existing ordered step chain model.
+    string command = 16;
+}
+
+message ToolChainItem {
+    string tool_name = 1;
+    map<string, string> tool_args = 2;
+    repeated string custom_flags = 3;
+}
+
+// --output=file.txt → key=--output, value=file.txt
+// -o file.txt       → key=-o, value=file.txt
+message CustomFlag {
+    string raw = 1;        // original flag string
+    string normalized = 2; // parsed key (e.g. "--output")
+    string value = 3;      // extracted value (if any)
+}
+
+message SubmitScanResponse {
+    string job_id = 1;
+    string step_id = 2;
+
+    StepStatus status = 3;
+
+    bool is_idempotent_replay = 4;
+    string original_request_id = 5;
+
+    google.protobuf.Timestamp queued_at = 6;
+
+    // Set when status is STEP_STATUS_QUEUE_FULL. Seconds to wait before retrying.
+    int32 retry_after_seconds = 7;
+}
+
+// ==================== Status ====================
+message GetStepStatusRequest {
+    string step_id = 1;
+}
+
+message GetStepStatusResponse {
+    string step_id = 1;
+    string job_id = 2;
+    string tool_name = 3;
+
+    StepStatus status = 4;
+    int64 exit_code = 5;
+    string error_message = 6;
+
+    google.protobuf.Timestamp queued_at = 7;
+    google.protobuf.Timestamp started_at = 8;
+    google.protobuf.Timestamp finished_at = 9;
+    int64 duration_ms = 10;
+
+    int32 findings_count = 11;
+    string raw_output_location = 12;
+    bool has_parsed_results = 13;
+}
+
+message GetJobStatusRequest {
+    string job_id = 1;
+}
+
+message GetJobStatusResponse {
+    string job_id = 1;
+    string project_id = 2;
+    JobStatus status = 3;
+
+    int32 total_steps = 4;
+    int32 completed_steps = 5;
+    int32 failed_steps = 6;
+    int32 pending_steps = 7;
+
+    int32 total_findings = 8;
+
+    google.protobuf.Timestamp created_at = 9;
+    google.protobuf.Timestamp started_at = 10;
+    google.protobuf.Timestamp finished_at = 11;
+
+    repeated StepSummary steps = 12;
+}
+
+message StepSummary {
+    string step_id = 1;
+    string tool_name = 2;
+    int32 step_order = 3;
+    StepStatus status = 4;
+    int32 findings_count = 5;
+    google.protobuf.Timestamp started_at = 6;
+    google.protobuf.Timestamp finished_at = 7;
+}
+
+// ==================== Streaming ====================
+message StreamLogsRequest {
+    string step_id = 1;
+    bool include_history = 2;
+    int32 history_limit = 3;
+    LogFilter filter = 4;
+}
+
+message LogChunk {
+    string step_id = 1;
+    string tool_name = 2;
+    string line = 3;
+    LogSource source = 4;
+    google.protobuf.Timestamp timestamp = 5;
+    int64 sequence_num = 6;
+
+    bool is_final_chunk = 7;
+
+    StepStatus completion_status = 8;
+}
+
+message LogFilter {
+    repeated LogSource sources = 1;
+    string keyword = 2;
+    int64 after_timestamp = 3;
+}
+
+// ==================== Results ====================
+message GetResultsRequest {
+    oneof scope {
+        string step_id = 1;
+        string job_id = 2;
+    }
+
+    ResultsFilter filter = 3;
+    Pagination pagination = 4;
+}
+
+message GetResultsResponse {
+    string scope_id = 1;
+    repeated Finding findings = 2;
+
+    Pagination pagination = 3;
+    int32 total_count = 4;
+
+    oneof raw_output {
+        bytes raw_output_inline = 5;
+        string raw_output_s3_url = 6;
+    }
+
+    ParsingMetadata parsing_metadata = 7;
+}
+
+message ResultsFilter {
+    repeated Severity severity_in = 1;
+    string host_contains = 2;
+    int32 port_eq = 3;
+    string fingerprint_eq = 4;
+    google.protobuf.Timestamp created_after = 5;
+}
+
+message Pagination {
+    int32 limit = 1;
+    int32 offset = 2;
+    string next_cursor = 3;
+    bool has_more = 4;
+}
+
+// ==================== Cancellation ====================
+message CancelStepRequest {
+    string step_id = 1;
+    // reserved 2,3 — were reason (string) and immediate (bool).
+    // Never read by the advanced scan handler; removed to match implementation.
+    reserved 2, 3;
+    reserved "reason", "immediate";
+}
+
+message CancelStepResponse {
+    string step_id = 1;
+    bool cancelled = 2;
+    string message = 3;
+    google.protobuf.Timestamp cancelled_at = 4;
+}
+
+message CancelJobRequest {
+    string job_id = 1;
+    // reserved 2,3 — were reason (string) and cancel_running_steps (bool).
+    // Never read by the advanced scan handler; removed to match implementation.
+    reserved 2, 3;
+    reserved "reason", "cancel_running_steps";
+}
+
+message CancelJobResponse {
+    string job_id = 1;
+    bool cancelled = 2;
+    int32 steps_cancelled = 3;
+    string message = 4;
+    google.protobuf.Timestamp cancelled_at = 5;
+}
+
+// ==================== Health ====================
+message HealthCheckResponse {
+    HealthStatus status = 1;
+
+    int64 uptime_seconds = 2;
+    int32 active_scans = 3;
+    int32 queued_scans = 4;
+
+    ServiceHealth docker = 5;
+    ServiceHealth database = 6;
+    ServiceHealth storage = 7;
+}
+
+message ServiceHealth {
+    HealthStatus status = 1;
+    string message = 2;
+    int64 latency_ms = 3;
+}
+
+// ==================== Enums ====================
+enum StepStatus {
+    STEP_STATUS_UNSPECIFIED = 0;
+    STEP_STATUS_PENDING = 1;
+    STEP_STATUS_QUEUED = 2;
+    STEP_STATUS_RUNNING = 3;
+    STEP_STATUS_COMPLETED = 4;
+    STEP_STATUS_FAILED = 5;
+    STEP_STATUS_CANCELLED = 6;
+    STEP_STATUS_SKIPPED = 7;
+    STEP_STATUS_QUEUE_FULL = 8;
+}
+
+enum JobStatus {
+    JOB_STATUS_UNSPECIFIED = 0;
+    JOB_STATUS_PENDING = 1;
+    JOB_STATUS_QUEUED = 7;
+    JOB_STATUS_RUNNING = 2;
+    JOB_STATUS_COMPLETED = 3;
+    JOB_STATUS_FAILED = 4;
+    JOB_STATUS_CANCELLED = 5;
+    JOB_STATUS_PARTIAL = 6;
+}
+
+enum LogSource {
+    LOG_SOURCE_UNSPECIFIED = 0;
+    LOG_SOURCE_STDOUT = 1;
+    LOG_SOURCE_STDERR = 2;
+    LOG_SOURCE_SYSTEM = 3;
+}
+
+enum Severity {
+    SEVERITY_UNSPECIFIED = 0;
+    SEVERITY_INFO = 1;
+    SEVERITY_LOW = 2;
+    SEVERITY_MEDIUM = 3;
+    SEVERITY_HIGH = 4;
+    SEVERITY_CRITICAL = 5;
+}
+
+enum ExecutionMode {
+    EXECUTION_MODE_UNSPECIFIED = 0;
+    EXECUTION_MODE_WEB = 1;
+    EXECUTION_MODE_CLI = 2;
+    EXECUTION_MODE_CICD = 3;
+}
+
+enum NetworkMode {
+    NETWORK_MODE_UNSPECIFIED = 0;
+    NETWORK_MODE_NONE = 1;
+    NETWORK_MODE_BRIDGE = 2;
+    NETWORK_MODE_HOST = 3;
+}
+
+enum HealthStatus {
+    HEALTH_STATUS_UNSPECIFIED = 0;
+    HEALTH_STATUS_HEALTHY = 1;
+    HEALTH_STATUS_DEGRADED = 2;
+    HEALTH_STATUS_UNHEALTHY = 3;
+}
+
+// ==================== Config ====================
+message ExecutionConfig {
+    int32 timeout_seconds = 1;
+    ResourceLimits resource_limits = 2;
+    NetworkPolicy network_policy = 3;
+}
+
+message ResourceLimits {
+    int64 memory_limit_bytes = 1;
+    // reserved 2,4,5 — were memory_reservation_bytes, cpu_reservation_nano,
+    // disk_limit_bytes. Docker runner does not apply reservation or disk limits.
+    reserved 2, 4, 5;
+    reserved "memory_reservation_bytes", "cpu_reservation_nano", "disk_limit_bytes";
+
+    int64 cpu_limit_nano = 3;
+}
+
+message NetworkPolicy {
+    NetworkMode mode = 1;
+    // reserved 2,3,4 — were egress_allow_cidr, egress_deny_cidr, dns.
+    // Network egress filtering and custom DNS are not implemented in the runner.
+    reserved 2, 3, 4;
+    reserved "egress_allow_cidr", "egress_deny_cidr", "dns";
+}
+
+// ShadowOutputConfig carries per-request artifact write overrides.
+// The bulk of shadow output behaviour (transport, parser, enable_flags, etc.)
+// comes from the tool's own metadata JSON at runtime — not from this message.
+// Only default_path and filename are read in production code.
+message ShadowOutputConfig {
+    // reserved 1,2,5,6,7 — were json_flag, file_flag, alternative_formats,
+    // parse_timeout_seconds, fallback_to_stdout. These are all sourced from
+    // tool metadata JSON at runtime and are not accepted via the request proto.
+    reserved 1, 2, 5, 6, 7;
+    reserved "json_flag", "file_flag", "alternative_formats",
+             "parse_timeout_seconds", "fallback_to_stdout";
+
+    // Override the directory where the artifact JSON is written.
+    string default_path = 3;
+    // Override the artifact filename (default: {job_id}_{step_id}_{ts}.json).
+    string filename = 4;
+}
+
+// ==================== Findings ====================
+message Finding {
+    string finding_id = 1;
+    string step_id = 2;
+    string job_id = 3;
+
+    string title = 4;
+    Severity severity = 5;
+    string fingerprint = 6;
+
+    string host = 7;
+    int32 port = 8;
+    string protocol = 9;
+    string url = 10;
+
+    string description = 11;
+    string remediation = 12;
+    repeated string references = 13;
+
+    map<string, string> metadata = 14;
+    map<string, string> tags = 15;
+
+    google.protobuf.Timestamp created_at = 16;
+}
+
+message ParsingMetadata {
+    string parser_name = 1;
+    string parser_version = 2;
+    google.protobuf.Timestamp parsed_at = 3;
+    int32 raw_size_bytes = 4;
+    int32 parsed_size_bytes = 5;
+    string parsing_error = 6;
+    bool is_partial = 7;
+}
+
+// ==================== Parsed Data (per-step structured results) ====================
+message GetParsedDataRequest {
+    string step_id = 1;
+}
+
+// TableColumn describes a single column for the frontend table renderer.
+// Known columns come from output_schema.fields (curated by admin).
+// Discovered columns are found by scanning actual data keys at response time.
+message TableColumn {
+    string key = 1;                      // JSON field name matching data row keys
+    string label = 2;                    // Human-readable display name
+    string type = 3;                     // string | integer | number | array | boolean
+    string description = 4;             // Tooltip / header help text
+    bool default_visible = 5;           // Whether to show this column by default
+    int32 order = 6;                    // Column position (0-based)
+    bool known = 7;                     // True if from output_schema, false if auto-discovered
+    map<string, string> render_hints = 8; // Semantic hints: "role" = "host"|"severity"|"title"|"description"
+}
+
+message GetParsedDataResponse {
+    string step_id = 1;
+    string job_id = 2;
+    string tool_name = 3;
+    string parse_method = 4; // "xml", "json_array", "json_object", "jsonl", "line"
+    int32 line_count = 5;
+    int32 findings_count = 6;
+    repeated string lines = 7;           // raw output lines (backward compatibility)
+    repeated Finding findings = 8;       // structured findings ready for table rendering
+    google.protobuf.Timestamp created_at = 9;
+
+    // Schema-aligned table data for frontend rendering.
+    repeated TableColumn columns = 10;            // known columns from output_schema.fields
+    repeated TableColumn discovered_columns = 11; // auto-discovered columns from actual data
+    repeated google.protobuf.Struct data = 12;    // parsed JSON objects (rows)
+}
+
+// ==================== Queue Status Messages ====================
+message QueueStatusRequest {}
+
+message QueueStatusResponse {
+    int64 queued_jobs = 1;
+    int64 processing_jobs = 2;
+    int64 total_jobs = 3;
+    int32 max_concurrent = 4;
+    int32 max_queue_capacity = 5;
+}
+
+message JobQueuePositionRequest {
+    string job_id = 1;
+}
+
+message JobQueuePositionResponse {
+    string job_id = 1;
+    string status = 2; // "queued", "processing", "not_in_queue"
+    int64 position = 3; // 0-indexed position in queue
+}
+
+message CancelQueuedJobRequest {
+    string job_id = 1;
+}
+
+message CancelQueuedJobResponse {
+    bool success = 1;
+    string message = 2;
+}

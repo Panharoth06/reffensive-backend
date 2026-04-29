@@ -1,0 +1,309 @@
+syntax = "proto3";
+
+package sonarqube;
+
+option go_package = "go-server/gen/sonarqube;sonarqube";
+
+import "google/protobuf/timestamp.proto";
+
+enum ScanStatus {
+  SCAN_STATUS_UNSPECIFIED = 0;
+  SCAN_STATUS_PENDING = 1;
+  SCAN_STATUS_IN_PROGRESS = 2;
+  SCAN_STATUS_SUCCESS = 3;
+  SCAN_STATUS_FAILED = 4;
+  SCAN_STATUS_PARTIAL = 5;
+}
+
+enum QualityGateStatus {
+  QUALITY_GATE_STATUS_UNSPECIFIED = 0;
+  QUALITY_GATE_STATUS_OK = 1;
+  QUALITY_GATE_STATUS_WARN = 2;
+  QUALITY_GATE_STATUS_ERROR = 3;
+}
+
+service SonarqubeService {
+  rpc TriggerScan      (TriggerScanRequest)   returns (TriggerScanResponse);
+  rpc GetScanStatus    (ScanStatusRequest)    returns (ScanStatusResponse);
+  rpc GetScanLogs      (ScanLogsRequest)      returns (ScanLogsResponse);
+  rpc GetScanSummary   (ScanSummaryRequest)   returns (ScanSummaryResponse);
+  rpc ListIssues       (ListIssuesRequest)    returns (ListIssuesResponse);
+  rpc GetIssueDetail   (IssueDetailRequest)   returns (IssueDetailResponse);
+  rpc GetFileIssues    (FileIssuesRequest)    returns (FileIssuesResponse);
+  rpc ListDependencies (ListDependenciesRequest) returns (ListDependenciesResponse);
+  rpc GetDependencySummary (ScanSummaryRequest) returns (DependencySummaryResponse);
+  rpc ListProjectScans (ProjectScansRequest)  returns (ProjectScansResponse);
+  rpc ListUserScans    (UserScansRequest)     returns (ProjectScansResponse);
+  rpc StreamScanStatus (ScanStatusRequest)    returns (stream ScanStatusResponse);
+  rpc StreamScanLogs   (StreamScanLogsRequest) returns (stream ScanLogChunk);
+}
+
+message TriggerScanRequest {
+  string project_key = 1;
+  string branch = 2;
+  string repo_url = 3;
+}
+
+message TriggerScanResponse {
+  string scan_id = 1;
+  ScanStatus status = 2;
+  google.protobuf.Timestamp created_at = 3;
+}
+
+message ScanStatusRequest {
+  string scan_id = 1;
+}
+
+message ScanStatusResponse {
+  string scan_id = 1;
+  ScanStatus status = 2;
+  int32 progress = 3;
+  google.protobuf.Timestamp started_at = 4;
+  google.protobuf.Timestamp finished_at = 5;
+  string error_message = 6;
+  repeated ScanPhase phases = 7;
+}
+
+message ScanPhase {
+  string key = 1;
+  string status = 2;
+  string error_message = 3;
+}
+
+message ScanLogsRequest {
+  string scan_id = 1;
+  int64 after_sequence_num = 2;
+  int32 limit = 3;
+  repeated string phases = 4;
+}
+
+message StreamScanLogsRequest {
+  string scan_id = 1;
+  bool include_history = 2;
+  int32 history_limit = 3;
+  repeated string phases = 4;
+}
+
+message ScanLogsResponse {
+  repeated ScanLogChunk logs = 1;
+  bool is_terminal = 2;
+  ScanStatus status = 3;
+  int64 next_sequence_num = 4;
+}
+
+message ScanLogChunk {
+  string scan_id = 1;
+  string phase = 2;
+  string level = 3;
+  string line = 4;
+  google.protobuf.Timestamp timestamp = 5;
+  int64 sequence_num = 6;
+  bool is_final_chunk = 7;
+  ScanStatus completion_status = 8;
+}
+
+message ScanSummaryRequest {
+  string scan_id = 1;
+}
+
+message ScanSummaryResponse {
+  string scan_id = 1;
+  QualityGateStatus quality_gate = 2;
+  int32 bugs = 3;
+  int32 vulnerabilities = 4;
+  int32 code_smells = 5;
+  double coverage = 6;
+  double duplications = 7;
+  int32 security_hotspots = 8;
+  DependencySummaryResponse dependency_summary = 9;
+}
+
+message Issue {
+  string key = 1;
+  string type = 2;
+  string severity = 3;
+  string rule_key = 4;
+  string message = 5;
+  string file_path = 6;
+  int32 line = 7;
+  string status = 8;
+  repeated string tags = 9;
+}
+
+message ListIssuesRequest {
+  string scan_id = 1;
+  optional string type_filter = 2;
+  optional string severity_filter = 3;
+  int32 page = 4;
+  int32 page_size = 5;
+}
+
+message ListIssuesResponse {
+  repeated Issue issues = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  int32 total = 4;
+}
+
+message IssueDetailRequest {
+  string scan_id = 1;
+  string issue_key = 2;
+}
+
+message TextRange {
+  int32 start_line = 1;
+  int32 end_line = 2;
+  int32 start_offset = 3;
+  int32 end_offset = 4;
+}
+
+message IssueWhere {
+  string component_key = 1;
+  string file_path = 2;
+  int32 line = 3;
+  TextRange text_range = 4;
+  string code_snippet = 5;
+}
+
+message IssueWhy {
+  string issue_message = 1;
+  string severity = 2;
+  string status = 3;
+  repeated string tags = 4;
+  string rule_key = 5;
+  string rule_name = 6;
+  string html_desc = 7;
+}
+
+message ActivityDiff {
+  string key = 1;
+  string old_value = 2;
+  string new_value = 3;
+}
+
+message ActivityComment {
+  string key = 1;
+  string login = 2;
+  string html_text = 3;
+  string created_at = 4;
+}
+
+message ActivityChange {
+  string created_at = 1;
+  string user = 2;
+  repeated ActivityDiff diffs = 3;
+}
+
+message IssueActivity {
+  repeated ActivityComment comments = 1;
+  repeated ActivityChange changelog = 2;
+}
+
+message DescriptionSection {
+  string key = 1;
+  string content = 2;
+}
+
+message IssueMoreInfo {
+  string documentation_url = 1;
+  repeated DescriptionSection description_sections = 2;
+}
+
+message IssueDetailResponse {
+  IssueWhere where_is_issue = 1;
+  IssueWhy why_is_issue = 2;
+  IssueActivity activity = 3;
+  IssueMoreInfo more_info = 4;
+}
+
+message FileIssuesRequest {
+  string scan_id = 1;
+  string file_path = 2;
+}
+
+message FileIssuesResponse {
+  repeated Issue issues = 1;
+}
+
+message Dependency {
+  string package_name = 1;
+  string ecosystem = 2;
+  string installed_version = 3;
+  string fixed_version = 4;
+  string latest_version = 5;
+  string cve_id = 6;
+  string severity = 7;
+  string license = 8;
+  bool is_outdated = 9;
+  bool is_vulnerable = 10;
+  bool has_license_issue = 11;
+  string description = 12;
+  string tool = 13;
+}
+
+message ListDependenciesRequest {
+  string scan_id = 1;
+  string tool = 2;
+  string severity = 3;
+  repeated string ecosystems = 4;
+  bool outdated_only = 5;
+  bool vulnerable_only = 6;
+  int32 page = 7;
+  int32 page_size = 8;
+}
+
+message ListDependenciesResponse {
+  repeated Dependency dependencies = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  int32 total = 4;
+}
+
+message EcosystemSummary {
+  string ecosystem = 1;
+  int32 total = 2;
+}
+
+message DependencySummaryResponse {
+  string scan_id = 1;
+  int32 total = 2;
+  int32 vulnerable = 3;
+  int32 outdated = 4;
+  int32 license_issues = 5;
+  int32 critical = 6;
+  int32 high = 7;
+  int32 medium = 8;
+  int32 low = 9;
+  repeated EcosystemSummary by_ecosystem = 10;
+}
+
+message ProjectScansRequest {
+  string project_key = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message UserScansRequest {
+  string project_key = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+}
+
+message ProjectScan {
+  string scan_id = 1;
+  string project_key = 2;
+  string branch = 3;
+  ScanStatus status = 4;
+  int32 progress = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp started_at = 7;
+  google.protobuf.Timestamp finished_at = 8;
+  string error_message = 9;
+}
+
+message ProjectScansResponse {
+  repeated ProjectScan scans = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  int32 total = 4;
+}

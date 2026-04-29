@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package suggestion;
+
+option go_package = "go-server/gen/suggestion;suggestion";
+
+import "google/protobuf/timestamp.proto";
+
+service SuggestionService {
+  rpc GenerateSuggestion(GenerateSuggestionRequest) returns (SuggestionResponse);
+  rpc GetSuggestion(GetSuggestionRequest) returns (SuggestionResponse);
+  rpc UpdateSuggestionFeedback(UpdateSuggestionFeedbackRequest) returns (SuggestionResponse);
+}
+
+enum SuggestionMode {
+  SUGGESTION_MODE_UNSPECIFIED = 0;
+  SUGGESTION_MODE_ANALYSIS = 1;
+  SUGGESTION_MODE_NEXT_STEPS = 2;
+  SUGGESTION_MODE_REPORT = 3;
+}
+
+message GenerateSuggestionRequest {
+  string job_id = 1;
+  SuggestionMode mode = 2;
+}
+
+message GetSuggestionRequest {
+  string suggestion_id = 1;
+  SuggestionMode mode = 2;
+}
+
+message UpdateSuggestionFeedbackRequest {
+  string job_id = 1;
+  SuggestionMode mode = 2;
+  string feedback = 3;
+}
+
+message SuggestionResponse {
+  string id = 1;
+  string job_id = 2;
+  SuggestionMode mode = 3;
+  string provider = 4;
+  string model = 5;
+  string content = 6;
+  string output_json = 7;
+  int32 input_tokens = 8;
+  int32 output_tokens = 9;
+  string feedback = 10;
+  bool is_suggested = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+}

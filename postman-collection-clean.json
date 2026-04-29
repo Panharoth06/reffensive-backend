@@ -1,0 +1,1663 @@
+{
+  "info": {
+    "name": "Reffensive API Gateway",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Auto-generated from live OpenAPI with foldered resources and request-body examples."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "sonarqubeToken",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["users"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"testuser1\",\n  \"email\": \"testuser1@example.com\",\n  \"password\": \"Passw0rd!\",\n  \"alias_name\": \"Test User\",\n  \"avatar_profile\": \"https://example.com/avatar.png\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/users/{user_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "{user_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get User",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/users/{user_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "{user_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/users/{user_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["users", "{user_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"testuser1\",\n  \"email\": \"testuser1@example.com\",\n  \"alias_name\": \"Updated User\",\n  \"avatar_profile\": \"https://example.com/avatar2.png\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "item": [
+        {
+          "name": "List all projects for current user",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/projects",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Create a new project",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/projects",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"demo-project\",\n  \"description\": \"Demo project\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete project",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/projects/{project_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{project_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get project by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/projects/{project_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{project_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Update project",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/projects/{project_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["projects", "{project_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"demo-project\",\n  \"description\": \"Updated demo project\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Tools",
+      "item": [
+        {
+          "name": "List tools",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/tools",
+              "host": ["{{baseUrl}}"],
+              "path": ["tools"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Create a tool",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/tools",
+              "host": ["{{baseUrl}}"],
+              "path": ["tools"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category_name\": \"recon\",\n  \"tool_name\": \"nmap\",\n  \"tool_description\": \"Network discovery scanner\",\n  \"tool_long_description\": \"Performs service detection and host discovery.\",\n  \"examples\": [\n    {\n      \"command\": \"nmap -sV 10.0.0.1\"\n    }\n  ],\n  \"input_schema\": {\n    \"type\": \"object\",\n    \"fields\": [\n      {\n        \"key\": \"target\",\n        \"type\": \"string\",\n        \"required\": true,\n        \"flag\": \"-iL\",\n        \"description\": \"Target host or file list\"\n      }\n    ],\n    \"pipeline_input\": {\n      \"multi_mode\": \"first\",\n      \"target_field\": \"target\"\n    }\n  },\n  \"output_schema\": {\n    \"type\": \"jsonl\",\n    \"description\": \"Structured scan results\",\n    \"fields\": [\n      {\n        \"key\": \"host\",\n        \"type\": \"string\",\n        \"label\": \"Host\",\n        \"finding_host\": true\n      },\n      {\n        \"key\": \"port\",\n        \"type\": \"integer\",\n        \"label\": \"Port\"\n      },\n      {\n        \"key\": \"service\",\n        \"type\": \"string\",\n        \"label\": \"Service\"\n      }\n    ],\n    \"pipeline_output\": {\n      \"mode\": \"jsonl\",\n      \"entity\": \"result\",\n      \"extract_field\": \"host\",\n      \"dedupe\": true\n    }\n  },\n  \"scan_config\": {\n    \"basic\": {\n      \"presets\": [\n        {\n          \"name\": \"default\",\n          \"description\": \"Default scan\",\n          \"flags\": [\n            \"-sV\"\n          ]\n        }\n      ]\n    },\n    \"medium\": {\n      \"options\": [\n        {\n          \"flag\": \"-p\",\n          \"key\": \"ports\",\n          \"type\": \"string\",\n          \"description\": \"Ports to scan\"\n        }\n      ]\n    },\n    \"advanced\": {\n      \"options\": [\n        {\n          \"flag\": \"-sS\",\n          \"key\": \"syn_scan\",\n          \"type\": \"boolean\",\n          \"description\": \"Enable SYN scan\"\n        }\n      ]\n    },\n    \"runtime\": {\n      \"use_gvisor\": true,\n      \"network_mode\": \"host\",\n      \"privileged\": false,\n      \"cap_add\": [\n        \"NET_RAW\"\n      ]\n    }\n  },\n  \"install_method\": \"apt\",\n  \"version\": \"7.94\",\n  \"image_ref\": \"ghcr.io/nmap/nmap:latest\",\n  \"image_source\": \"dockerhub\",\n  \"build_config\": {\n    \"dockerfile\": \"Dockerfile\"\n  },\n  \"is_active\": true,\n  \"denied_options\": [\n    \"--script\",\n    \"--interactive\"\n  ],\n  \"shadow_output_config\": {\n    \"preferred_format\": \"jsonl\",\n    \"formats\": {\n      \"jsonl\": {\n        \"transport\": \"stdout\",\n        \"enable_flags\": [\n          \"-json\"\n        ],\n        \"parser\": \"jsonl\",\n        \"path_mode\": \"streaming\",\n        \"file_extension\": \".jsonl\"\n      }\n    },\n    \"default_path\": \"/tmp/shadow\",\n    \"parse_timeout_seconds\": 30,\n    \"fallback_to_stdout\": true,\n    \"is_streaming\": true,\n    \"alternative_formats\": []\n  },\n  \"parser_config\": {\n    \"type\": \"jsonl\",\n    \"field_mappings\": {\n      \"title\": [\n        \"service\",\n        \"port\"\n      ],\n      \"severity\": \"medium\",\n      \"host\": [\n        \"host\"\n      ],\n      \"description\": [\n        \"description\"\n      ],\n      \"metadata\": [\n        \"raw\"\n      ]\n    },\n    \"default_severity\": \"medium\",\n    \"fingerprint_fields\": [\n      \"host\",\n      \"port\"\n    ],\n    \"interesting_rule\": {\n      \"field\": \"severity\",\n      \"condition\": \"gte\",\n      \"value\": \"high\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Soft-delete a tool (sets is_active=false)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/tools/{tool_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tools", "{tool_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get a tool by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/tools/{tool_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tools", "{tool_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Update a tool (partial — omit fields to keep existing)",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{baseUrl}}/tools/{tool_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tools", "{tool_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category_name\": \"recon\",\n  \"tool_name\": \"nmap\",\n  \"tool_description\": \"Updated network discovery scanner\",\n  \"tool_long_description\": \"Updated details\",\n  \"examples\": [\n    {\n      \"command\": \"nmap -sV 10.0.0.1\"\n    }\n  ],\n  \"install_method\": \"apt\",\n  \"version\": \"7.94\",\n  \"image_ref\": \"ghcr.io/nmap/nmap:latest\",\n  \"image_source\": \"dockerhub\",\n  \"build_config\": {\n    \"dockerfile\": \"Dockerfile\"\n  },\n  \"denied_options\": [\n    \"--script\"\n  ],\n  \"shadow_output_config\": {\n    \"preferred_format\": \"jsonl\",\n    \"formats\": {\n      \"jsonl\": {\n        \"transport\": \"stdout\",\n        \"enable_flags\": [\n          \"-json\"\n        ],\n        \"parser\": \"jsonl\",\n        \"path_mode\": \"streaming\",\n        \"file_extension\": \".jsonl\"\n      }\n    }\n  },\n  \"parser_config\": {\n    \"type\": \"jsonl\",\n    \"field_mappings\": {\n      \"title\": [\n        \"service\"\n      ]\n    },\n    \"fingerprint_fields\": [\n      \"host\"\n    ]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reactivate a tool",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/tools/{tool_id}/activate",
+              "host": ["{{baseUrl}}"],
+              "path": ["tools", "{tool_id}", "activate"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "List all categories",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Create a category",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"recon\",\n  \"description\": \"Reconnaissance tools\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Hard-delete a category",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/categories/{category_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories", "{category_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get a category by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/categories/{category_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories", "{category_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Update a category",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{baseUrl}}/categories/{category_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["categories", "{category_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"recon\",\n  \"description\": \"Updated category description\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "API Keys",
+      "item": [
+        {
+          "name": "Create a new API key",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/apikeys/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "apikeys", "create"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"ci-deploy-key\",\n  \"description\": \"Key for CI\",\n  \"scopes\": [\n    \"scan:run\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List API keys for a project",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/apikeys/project/{project_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "apikeys", "project", "{project_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Validate an API key",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/apikeys/validate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "apikeys", "validate"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"key\": \"aof_live_example_key\",\n  \"action\": \"scan:run\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get a specific API key",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/apikeys/{key_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "apikeys", "{key_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Revoke an API key",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/apikeys/{key_id}/revoke",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "apikeys", "{key_id}", "revoke"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Scans - Advanced",
+      "item": [
+        {
+          "name": "Get advanced job status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/advanced/jobs/{job_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "advanced", "jobs", "{job_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get advanced findings for a job",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/advanced/jobs/{job_id}/findings",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "advanced", "jobs", "{job_id}", "findings"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get parsed data for all steps in a job",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/advanced/jobs/{job_id}/parsed-data",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "advanced", "jobs", "{job_id}", "parsed-data"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get advanced job summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/advanced/jobs/{job_id}/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "advanced", "jobs", "{job_id}", "summary"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel queued job",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/scans/advanced/queue/jobs/{job_id}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "scans",
+                "advanced",
+                "queue",
+                "jobs",
+                "{job_id}",
+                "cancel"
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get job queue position",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/advanced/queue/jobs/{job_id}/position",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "scans",
+                "advanced",
+                "queue",
+                "jobs",
+                "{job_id}",
+                "position"
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get scan queue status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/advanced/queue/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "advanced", "queue", "status"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get advanced findings/results",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/advanced/results",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "advanced", "results"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get advanced step status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/advanced/steps/{step_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "advanced", "steps", "{step_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get advanced findings for a step",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/advanced/steps/{step_id}/findings",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "advanced", "steps", "{step_id}", "findings"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Stream advanced step logs over SSE",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/advanced/steps/{step_id}/logs/stream",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "scans",
+                "advanced",
+                "steps",
+                "{step_id}",
+                "logs",
+                "stream"
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get advanced step parsed data for table rendering",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/advanced/steps/{step_id}/parsed-data",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "advanced", "steps", "{step_id}", "parsed-data"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get advanced step raw output",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/advanced/steps/{step_id}/raw-output",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "advanced", "steps", "{step_id}", "raw-output"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get advanced step summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/advanced/steps/{step_id}/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "advanced", "steps", "{step_id}", "summary"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Submit advanced scan",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/scans/advanced/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "advanced", "submit"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"project_id\": \"demo-project\",\n  \"command\": \"subfinder -d example.com | httpx\",\n  \"idempotency_key\": \"scan-demo-001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Scans - Medium",
+      "item": [
+        {
+          "name": "Get medium scan job status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/medium/jobs/{job_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "medium", "jobs", "{job_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get medium scan results",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/medium/results",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "medium", "results"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get medium scan step status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/medium/steps/{step_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "medium", "steps", "{step_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Stream medium scan step logs over SSE",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/medium/steps/{step_id}/logs/stream",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "scans",
+                "medium",
+                "steps",
+                "{step_id}",
+                "logs",
+                "stream"
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Submit medium scan",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/scans/medium/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "medium", "submit"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"project_id\": \"demo-project\",\n  \"target_value\": \"example.com\",\n  \"tool_name\": \"nmap\",\n  \"tool_options\": {\n    \"ports\": \"1-1000\"\n  },\n  \"steps\": [\n    {\n      \"tool_name\": \"nmap\",\n      \"tool_options\": {\n        \"ports\": \"1-1000\"\n      },\n      \"runtime_timeout_seconds\": 600\n    }\n  ],\n  \"execution_mode\": \"WEB\",\n  \"runtime_timeout_seconds\": 600,\n  \"idempotency_key\": \"medium-demo-001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Scans - Basic",
+      "item": [
+        {
+          "name": "Get basic job status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/basic/jobs/{job_id}",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "basic", "jobs", "{job_id}"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get basic findings for a job",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/basic/jobs/{job_id}/findings",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "basic", "jobs", "{job_id}", "findings"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get basic job summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/basic/jobs/{job_id}/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "basic", "jobs", "{job_id}", "summary"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get basic findings/results",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/scans/basic/results",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "basic", "results"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Submit basic scan and stream output",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/scans/basic/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["scans", "basic", "submit"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"project_id\": \"demo-project\",\n  \"target\": \"example.com\",\n  \"tool\": \"nmap\",\n  \"preset\": \"top-ports\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Scanner (Repo Scan)",
+      "item": [
+        {
+          "name": "List project scans",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/scanner/projects/{project_key}/scans",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "scanner", "projects", "{project_key}", "scans"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Trigger a new code scan",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/scanner/scans",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "scanner", "scans"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"project_key\": \"demo-project\",\n  \"branch\": \"main\",\n  \"repo_url\": \"https://github.com/OWNER/REPO\",\n  \"source_dir\": \"/workspace/repo\",\n  \"sonarqube_token\": \"{{sonarqubeToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List dependencies",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/scanner/scans/{scan_id}/dependencies",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "scanner", "scans", "{scan_id}", "dependencies"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get dependency summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/scanner/scans/{scan_id}/dependencies/summary",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "api",
+                "scanner",
+                "scans",
+                "{scan_id}",
+                "dependencies",
+                "summary"
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get issues in a file",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/scanner/scans/{scan_id}/files/{file_path}/issues",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "api",
+                "scanner",
+                "scans",
+                "{scan_id}",
+                "files",
+                "{file_path}",
+                "issues"
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "List code issues",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/scanner/scans/{scan_id}/issues",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "scanner", "scans", "{scan_id}", "issues"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get issue detail",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/scanner/scans/{scan_id}/issues/{issue_key}",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "api",
+                "scanner",
+                "scans",
+                "{scan_id}",
+                "issues",
+                "{issue_key}"
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get scan status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/scanner/scans/{scan_id}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "scanner", "scans", "{scan_id}", "status"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Stream scan progress (SSE)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/scanner/scans/{scan_id}/stream",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "scanner", "scans", "{scan_id}", "stream"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get scan summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/scanner/scans/{scan_id}/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "scanner", "scans", "{scan_id}", "summary"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Integrations",
+      "item": [
+        {
+          "name": "List All Provider Accounts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/integrations/accounts",
+              "host": ["{{baseUrl}}"],
+              "path": ["integrations", "accounts"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "List Provider Accounts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/integrations/{provider}/accounts",
+              "host": ["{{baseUrl}}"],
+              "path": ["integrations", "{provider}", "accounts"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Provider Callback",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/integrations/{provider}/callback",
+              "host": ["{{baseUrl}}"],
+              "path": ["integrations", "{provider}", "callback"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Provider Connect Url",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/integrations/{provider}/connect-url",
+              "host": ["{{baseUrl}}"],
+              "path": ["integrations", "{provider}", "connect-url"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "List Provider Repositories",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/integrations/{provider}/repositories",
+              "host": ["{{baseUrl}}"],
+              "path": ["integrations", "{provider}", "repositories"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "List Provider Repository Branches",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/integrations/{provider}/repositories/branches",
+              "host": ["{{baseUrl}}"],
+              "path": ["integrations", "{provider}", "repositories", "branches"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Git",
+      "item": [
+        {
+          "name": "Get Github Repositories",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/git/github/repositories",
+              "host": ["{{baseUrl}}"],
+              "path": ["git", "github", "repositories"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get Github Branches",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/git/github/repositories/{owner}/{repo}/branches",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "git",
+                "github",
+                "repositories",
+                "{owner}",
+                "{repo}",
+                "branches"
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get Gitlab Repositories",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/git/gitlab/repositories",
+              "host": ["{{baseUrl}}"],
+              "path": ["git", "gitlab", "repositories"]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        },
+        {
+          "name": "Get Gitlab Branches",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/git/gitlab/repositories/{project_id}/branches",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "git",
+                "gitlab",
+                "repositories",
+                "{project_id}",
+                "branches"
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

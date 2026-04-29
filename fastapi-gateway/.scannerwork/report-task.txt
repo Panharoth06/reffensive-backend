@@ -1,0 +1,6 @@
+projectKey=auto-offensive
+serverUrl=http://localhost:9000
+serverVersion=26.3.0.120487
+dashboardUrl=http://localhost:9000/dashboard?id=auto-offensive
+ceTaskId=03feb22d-2b6d-4d03-982f-c5d001c5e17c
+ceTaskUrl=http://localhost:9000/api/ce/task?id=03feb22d-2b6d-4d03-982f-c5d001c5e17c
