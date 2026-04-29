@@ -35,7 +35,7 @@ ARG GOSUMDB=sum.golang.org
 ENV GOPROXY=${GOPROXY}
 ENV GOSUMDB=${GOSUMDB}
 
-COPY go.mod ./
+COPY go-server/go.mod go-server/go.sum ./
 RUN set -eux; \
     i=1; \
     until [ "$i" -gt 5 ]; do \
