@@ -307,9 +307,9 @@ async def get_file_issues(
 )
 async def list_dependencies(
     scan_id: str,
-    tool: Optional[str] = Query(None, description="Filter by tool (OWASP, TRIVY)"),
+    tool: Optional[str] = Query(None, description="Filter by tool (govulncheck, pip-audit, npm-audit, etc.)"),
     severity: Optional[str] = Query(None, description="Filter by severity"),
-    ecosystems: Optional[str] = Query(None, description="Filter by ecosystems (comma-separated)"),
+    languages: list[str] = Query(default=[], description="Filter by languages"),
     outdated_only: bool = Query(False),
     vulnerable_only: bool = Query(False),
     page: int = Query(1, ge=1),
@@ -320,24 +320,30 @@ async def list_dependencies(
     List dependency vulnerabilities and outdated packages found in a scan.
     
     Supports filtering by:
-    - tool: OWASP or TRIVY
+    - tool: govulncheck, pip-audit, npm-audit, mvn-dependency-check, etc.
     - severity: CRITICAL, HIGH, MEDIUM, LOW, INFO
-    - ecosystems: GO, PYTHON, NODE, JAVA, etc. (comma-separated)
+    - languages: go, python, node, java, kotlin, php, rust, ruby, dotnet, swift, dart
     - outdated_only: Show only outdated dependencies
     - vulnerable_only: Show only vulnerable dependencies
     """
     try:
-        ecosystem_list = [e.strip() for e in ecosystems.split(",")] if ecosystems else None
         return sonarqube_scan_client.list_dependencies(
             scan_id=scan_id,
             tool=tool,
             severity=severity,
-            ecosystems=ecosystem_list,
+            languages=languages,
             outdated_only=outdated_only,
             vulnerable_only=vulnerable_only,
             page=page,
             page_size=page_size,
+            user_id=current_user.user_id,
+            api_key_id=current_user.api_key_id,
+            api_project_id=current_user.project_id,
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except grpc.RpcError as exc:
+        raise_for_grpc_error(exc)
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to list dependencies") from exc
 
@@ -353,7 +359,14 @@ async def get_dependency_summary(
 ) -> DependencySummaryResponse:
     """Get a summary of dependency findings (CVEs, outdated packages, licenses)."""
     try:
-        return sonarqube_scan_client.get_dependency_summary(scan_id)
+        return sonarqube_scan_client.get_dependency_summary(
+            scan_id,
+            user_id=current_user.user_id,
+            api_key_id=current_user.api_key_id,
+            api_project_id=current_user.project_id,
+        )
+    except grpc.RpcError as exc:
+        raise_for_grpc_error(exc)
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to get dependency summary") from exc
 

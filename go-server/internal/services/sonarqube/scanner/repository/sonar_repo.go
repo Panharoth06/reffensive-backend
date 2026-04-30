@@ -10,6 +10,7 @@ import (
 )
 
 type SonarResult struct {
+	AnalysisID       string
 	QualityGate      string
 	Bugs             int32
 	Vulnerabilities  int32
@@ -28,13 +29,14 @@ func NewSonarRepository(queries *db.Queries) *SonarRepository {
 	return &SonarRepository{queries: queries}
 }
 
-func (r *SonarRepository) SaveResult(ctx context.Context, scanID string, result *SonarResult) error {
+func (r *SonarRepository) SaveResult(ctx context.Context, scanID, analysisID string, result *SonarResult) error {
 	id, err := uuid.Parse(scanID)
 	if err != nil {
 		return err
 	}
 	_, err = r.queries.UpsertScanSonarResult(ctx, db.UpsertScanSonarResultParams{
 		ScanID:           id,
+		AnalysisID:       textValue(analysisID),
 		QualityGate:      result.QualityGate,
 		Bugs:             result.Bugs,
 		Vulnerabilities:  result.Vulnerabilities,
@@ -57,6 +59,7 @@ func (r *SonarRepository) GetResult(ctx context.Context, scanID string) (*SonarR
 		return nil, err
 	}
 	return &SonarResult{
+		AnalysisID:       text(row.AnalysisID),
 		QualityGate:      row.QualityGate,
 		Bugs:             row.Bugs,
 		Vulnerabilities:  row.Vulnerabilities,

@@ -10,28 +10,32 @@ import (
 	"github.com/google/uuid"
 
 	db "go-server/internal/database/sqlc"
+	"go-server/internal/services/sonarqube/scanner/dependency"
 )
 
 type Dependency struct {
-	PackageName      string `json:"package_name"`
-	Ecosystem        string `json:"ecosystem"`
-	InstalledVersion string `json:"installed_version"`
-	FixedVersion     string `json:"fixed_version"`
-	LatestVersion    string `json:"latest_version"`
-	CVEID            string `json:"cve_id"`
-	Severity         string `json:"severity"`
-	License          string `json:"license"`
-	IsOutdated       bool   `json:"is_outdated"`
-	IsVulnerable     bool   `json:"is_vulnerable"`
-	HasLicenseIssue  bool   `json:"has_license_issue"`
-	Description      string `json:"description"`
-	Tool             string `json:"tool"`
+	Language         string          `json:"language"`
+	PackageName      string          `json:"package_name"`
+	Ecosystem        string          `json:"ecosystem"`
+	InstalledVersion string          `json:"installed_version"`
+	FixedVersion     string          `json:"fixed_version"`
+	LatestVersion    string          `json:"latest_version"`
+	CVEID            string          `json:"cve_id"`
+	Severity         string          `json:"severity"`
+	License          string          `json:"license"`
+	IsOutdated       bool            `json:"is_outdated"`
+	IsVulnerable     bool            `json:"is_vulnerable"`
+	HasLicenseIssue  bool            `json:"has_license_issue"`
+	Description      string          `json:"description"`
+	Tool             string          `json:"tool"`
+	RawFinding       json.RawMessage `json:"raw_finding"`
 }
 
 type DependencyFilters struct {
 	Tool           string
 	Severity       string
 	Ecosystems     []string
+	Languages      []string
 	OutdatedOnly   bool
 	VulnerableOnly bool
 	Page           int32
@@ -49,11 +53,24 @@ type DependencySummary struct {
 	Medium        int32
 	Low           int32
 	ByEcosystem   []EcosystemSummary
+	ByLanguage    []LanguageSummary
 }
 
 type EcosystemSummary struct {
 	Ecosystem string
 	Total     int32
+}
+
+type LanguageSummary struct {
+	Language      string
+	Total         int32
+	Vulnerable    int32
+	Outdated      int32
+	LicenseIssues int32
+	Critical      int32
+	High          int32
+	Medium        int32
+	Low           int32
 }
 
 type DependencyRepository struct {
@@ -64,17 +81,16 @@ func NewDependencyRepository(queries *db.Queries) *DependencyRepository {
 	return &DependencyRepository{queries: queries}
 }
 
-func (r *DependencyRepository) SaveFindings(ctx context.Context, scanID, tool string, findings []*Dependency) error {
+func (r *DependencyRepository) SaveFindings(ctx context.Context, scanID string, findings []*dependency.Finding) error {
 	id, err := uuid.Parse(scanID)
 	if err != nil {
 		return err
 	}
-	tool = strings.ToUpper(strings.TrimSpace(tool))
 	for _, finding := range findings {
 		if finding == nil {
 			continue
 		}
-		if _, err := r.queries.UpsertScanDependencyResult(ctx, dependencyParams(id, tool, finding)); err != nil {
+		if _, err := r.queries.UpsertScanDependencyResult(ctx, dependencyParams(id, finding)); err != nil {
 			return err
 		}
 	}
@@ -92,8 +108,9 @@ func (r *DependencyRepository) ListFindings(ctx context.Context, scanID string, 
 		Column2: strings.ToUpper(strings.TrimSpace(filters.Tool)),
 		Column3: strings.ToUpper(strings.TrimSpace(filters.Severity)),
 		Column4: upperStrings(filters.Ecosystems),
-		Column5: filters.OutdatedOnly,
-		Column6: filters.VulnerableOnly,
+		Column5: upperStrings(filters.Languages),
+		Column6: filters.OutdatedOnly,
+		Column7: filters.VulnerableOnly,
 		Limit:   pageSize,
 		Offset:  (page - 1) * pageSize,
 	}
@@ -108,6 +125,7 @@ func (r *DependencyRepository) ListFindings(ctx context.Context, scanID string, 
 		Column4: args.Column4,
 		Column5: args.Column5,
 		Column6: args.Column6,
+		Column7: args.Column7,
 	})
 	if err != nil {
 		return nil, 0, err
@@ -128,6 +146,10 @@ func (r *DependencyRepository) GetSummary(ctx context.Context, scanID string) (*
 	if err != nil {
 		return nil, err
 	}
+	byLanguage, err := r.queries.GetScanDependencySummaryByLanguage(ctx, id)
+	if err != nil {
+		return nil, err
+	}
 	resp := &DependencySummary{
 		ScanID:        scanID,
 		Total:         summary.Total,
@@ -139,6 +161,7 @@ func (r *DependencyRepository) GetSummary(ctx context.Context, scanID string) (*
 		Medium:        summary.Medium,
 		Low:           summary.Low,
 		ByEcosystem:   make([]EcosystemSummary, 0, len(byEcosystem)),
+		ByLanguage:    make([]LanguageSummary, 0, len(byLanguage)),
 	}
 	for _, item := range byEcosystem {
 		resp.ByEcosystem = append(resp.ByEcosystem, EcosystemSummary{
@@ -146,22 +169,40 @@ func (r *DependencyRepository) GetSummary(ctx context.Context, scanID string) (*
 			Total:     item.Total,
 		})
 	}
+	for _, item := range byLanguage {
+		resp.ByLanguage = append(resp.ByLanguage, LanguageSummary{
+			Language:      item.Language,
+			Total:         item.Total,
+			Vulnerable:    item.Vulnerable,
+			Outdated:      item.Outdated,
+			LicenseIssues: item.LicenseIssues,
+			Critical:      item.Critical,
+			High:          item.High,
+			Medium:        item.Medium,
+			Low:           item.Low,
+		})
+	}
 	return resp, nil
 }
 
-func dependencyParams(scanID uuid.UUID, tool string, finding *Dependency) db.UpsertScanDependencyResultParams {
-	raw, _ := json.Marshal(finding)
+func dependencyParams(scanID uuid.UUID, finding *dependency.Finding) db.UpsertScanDependencyResultParams {
+	raw := finding.RawFinding
+	if len(raw) == 0 {
+		raw, _ = json.Marshal(finding)
+	}
+	tool := strings.ToUpper(strings.TrimSpace(firstNonEmpty(finding.Tool, "DEPENDENCY")))
 	return db.UpsertScanDependencyResultParams{
 		ScanID:           scanID,
 		Tool:             tool,
 		FindingKey:       dependencyFindingKey(tool, finding),
+		Language:         firstNonEmpty(strings.ToUpper(strings.TrimSpace(finding.Language)), "UNKNOWN"),
 		PackageName:      firstNonEmpty(finding.PackageName, "unknown"),
 		Ecosystem:        textValue(firstNonEmpty(strings.ToUpper(strings.TrimSpace(finding.Ecosystem)), "OTHER")),
 		InstalledVersion: textValue(finding.InstalledVersion),
 		FixedVersion:     textValue(finding.FixedVersion),
 		LatestVersion:    textValue(finding.LatestVersion),
 		CveID:            textValue(finding.CVEID),
-		CveSeverity:      textValue(normalizeSeverity(finding.Severity)),
+		CveSeverity:      textValue(normalizeSeverity(finding.CVESeverity)),
 		License:          textValue(finding.License),
 		IsOutdated:       finding.IsOutdated,
 		IsVulnerable:     finding.IsVulnerable,
@@ -171,9 +212,10 @@ func dependencyParams(scanID uuid.UUID, tool string, finding *Dependency) db.Ups
 	}
 }
 
-func dependencyFindingKey(tool string, finding *Dependency) string {
+func dependencyFindingKey(tool string, finding *dependency.Finding) string {
 	sum := sha256.Sum256([]byte(strings.Join([]string{
 		tool,
+		finding.Language,
 		finding.PackageName,
 		finding.InstalledVersion,
 		finding.CVEID,
@@ -187,6 +229,7 @@ func dependenciesFromDB(items []db.ScanDependencyResult) []*Dependency {
 	result := make([]*Dependency, 0, len(items))
 	for _, item := range items {
 		result = append(result, &Dependency{
+			Language:         item.Language,
 			PackageName:      item.PackageName,
 			Ecosystem:        text(item.Ecosystem),
 			InstalledVersion: text(item.InstalledVersion),

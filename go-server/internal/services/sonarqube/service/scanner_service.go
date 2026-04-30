@@ -22,8 +22,11 @@ import (
 	db "go-server/internal/database/sqlc"
 	"go-server/internal/interceptor"
 	sonarqubequeue "go-server/internal/services/sonarqube/queue"
+	"go-server/internal/services/sonarqube/scanner/dependency"
+	"go-server/internal/services/sonarqube/scanner/dependency/lang"
 	"go-server/internal/services/sonarqube/scanner/repository"
 	"go-server/internal/services/sonarqube/scanner/sonar"
+	appconfig "go-server/pkg/config"
 	redisutil "go-server/redis"
 )
 
@@ -48,6 +51,7 @@ type ScannerServer struct {
 	scanRepo            *repository.ScanRepository
 	sonarRepo           *repository.SonarRepository
 	depRepo             *repository.DependencyRepository
+	depRunner           *dependency.Runner
 	queueClient         *sonarqubequeue.Client
 	progressPub         *sonarqubequeue.ProgressPublisher
 	sonarClient         *sonar.Client
@@ -83,16 +87,34 @@ func NewScannerServer(queries *db.Queries) (*ScannerServer, error) {
 		tmpRoot = defaultScanTmpRoot
 	}
 	redisAddr := os.Getenv("REDIS_ADDR")
+	serviceLogger := zerolog.New(os.Stdout).With().Timestamp().Str("service", "sonarqube-scanner").Logger()
+	depRunner := dependency.NewRunner(serviceLogger, appconfig.Config{})
+	if err := depRunner.RegisterScanners(map[string]dependency.ScannerFunc{
+		"go":     lang.ScanGo,
+		"python": lang.ScanPython,
+		"node":   lang.ScanNode,
+		"java":   lang.ScanJava,
+		"kotlin": lang.ScanJava,
+		"php":    lang.ScanPHP,
+		"rust":   lang.ScanRust,
+		"ruby":   lang.ScanRuby,
+		"dotnet": lang.ScanDotNet,
+		"swift":  lang.ScanSwift,
+		"dart":   lang.ScanDart,
+	}); err != nil {
+		return nil, fmt.Errorf("register dependency scanners: %w", err)
+	}
 	return &ScannerServer{
 		queries:             queries,
 		scanRepo:            repository.NewScanRepository(queries),
 		sonarRepo:           repository.NewSonarRepository(queries),
 		depRepo:             repository.NewDependencyRepository(queries),
+		depRunner:           depRunner,
 		queueClient:         sonarqubequeue.NewClient(redisAddr),
 		progressPub:         sonarqubequeue.NewProgressPublisher(redisAddr, os.Getenv("SONARQUBE_PROGRESS_CHANNEL_PREFIX")),
 		sonarClient:         sonarClient,
 		redisClient:         redisutil.NewClient(redisAddr),
-		logger:              zerolog.New(os.Stdout).With().Timestamp().Str("service", "sonarqube-scanner").Logger(),
+		logger:              serviceLogger,
 		scanLogPrefix:       scanLogPrefixFromEnv(),
 		scanLogHistoryLimit: scanLogHistoryLimitFromEnv(),
 		scanLogTTL:          scanLogTTLFromEnv(),
