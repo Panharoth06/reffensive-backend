@@ -362,11 +362,19 @@ func (ns NullSeverityLevel) Value() (driver.Value, error) {
 }
 
 type AiSuggestion struct {
-	ID          uuid.UUID          `json:"id"`
-	JobID       uuid.UUID          `json:"job_id"`
-	Content     string             `json:"content"`
-	IsSuggested pgtype.Bool        `json:"is_suggested"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	ID           uuid.UUID          `json:"id"`
+	JobID        uuid.UUID          `json:"job_id"`
+	Content      string             `json:"content"`
+	IsSuggested  pgtype.Bool        `json:"is_suggested"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	Mode         string             `json:"mode"`
+	Provider     string             `json:"provider"`
+	Model        string             `json:"model"`
+	OutputJson   json.RawMessage    `json:"output_json"`
+	InputTokens  int32              `json:"input_tokens"`
+	OutputTokens int32              `json:"output_tokens"`
+	Feedback     string             `json:"feedback"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
 type ApiKey struct {
@@ -501,6 +509,7 @@ type Scan struct {
 	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
 	CloneStatus          string             `json:"clone_status"`
 	CloneError           pgtype.Text        `json:"clone_error"`
+	SonarProjectKey      pgtype.Text        `json:"sonar_project_key"`
 }
 
 type ScanDependencyResult struct {
@@ -522,6 +531,7 @@ type ScanDependencyResult struct {
 	Description      pgtype.Text        `json:"description"`
 	RawFinding       json.RawMessage    `json:"raw_finding"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	Language         string             `json:"language"`
 }
 
 type ScanJob struct {
@@ -535,6 +545,20 @@ type ScanJob struct {
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 	FinishedAt    pgtype.Timestamptz `json:"finished_at"`
 	ScanDuration  pgtype.Interval    `json:"scan_duration"`
+}
+
+type ScanPhase struct {
+	ID         uuid.UUID          `json:"id"`
+	ScanID     uuid.UUID          `json:"scan_id"`
+	Phase      string             `json:"phase"`
+	Status     string             `json:"status"`
+	Progress   int32              `json:"progress"`
+	Attempt    int32              `json:"attempt"`
+	Error      pgtype.Text        `json:"error"`
+	StartedAt  pgtype.Timestamptz `json:"started_at"`
+	FinishedAt pgtype.Timestamptz `json:"finished_at"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 }
 
 type ScanResult struct {
@@ -565,6 +589,7 @@ type ScanSonarResult struct {
 	SecurityHotspots int32              `json:"security_hotspots"`
 	RawResponse      json.RawMessage    `json:"raw_response"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	AnalysisID       pgtype.Text        `json:"analysis_id"`
 }
 
 type ScanStep struct {
@@ -580,6 +605,23 @@ type ScanStep struct {
 	StartedAt   pgtype.Timestamptz `json:"started_at"`
 	FinishedAt  pgtype.Timestamptz `json:"finished_at"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+type ScanSuggestion struct {
+	SuggestionID  uuid.UUID          `json:"suggestion_id"`
+	ProjectID     uuid.UUID          `json:"project_id"`
+	JobID         uuid.UUID          `json:"job_id"`
+	Title         string             `json:"title"`
+	Description   pgtype.Text        `json:"description"`
+	Reasoning     pgtype.Text        `json:"reasoning"`
+	Priority      pgtype.Text        `json:"priority"`
+	Confidence    pgtype.Float8      `json:"confidence"`
+	ToolID        uuid.UUID          `json:"tool_id"`
+	InputStepID   pgtype.UUID        `json:"input_step_id"`
+	Params        json.RawMessage    `json:"params"`
+	Status        string             `json:"status"`
+	ExecutedJobID pgtype.UUID        `json:"executed_job_id"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
 type Target struct {

@@ -13,12 +13,9 @@ import (
 
 	sonarqubequeue "go-server/internal/services/sonarqube/queue"
 	gitscanner "go-server/internal/services/sonarqube/scanner/git"
-	"go-server/internal/services/sonarqube/scanner/owasp"
 	"go-server/internal/services/sonarqube/scanner/sonar"
-	"go-server/internal/services/sonarqube/scanner/trivy"
 )
 
-// RunQueuedScan executes a scan from an Asynq payload.
 func (s *ScannerServer) RunQueuedScan(ctx context.Context, payload sonarqubequeue.ScanTaskPayload) error {
 	scanID, err := uuid.Parse(payload.ScanID)
 	if err != nil {
@@ -32,7 +29,6 @@ func (s *ScannerServer) RunQueuedScan(ctx context.Context, payload sonarqubequeu
 	return nil
 }
 
-// runFullScan clones the repository and runs all scanners concurrently.
 func (s *ScannerServer) runFullScan(ctx context.Context, scanID uuid.UUID, req scanRequest) {
 	scanRoot := filepath.Join(s.tmpRoot, scanID.String())
 	tmpDir := filepath.Join(scanRoot, "source")
@@ -85,112 +81,73 @@ func (s *ScannerServer) runFullScan(ctx context.Context, scanID uuid.UUID, req s
 		s.completeScanLog(scanID, scanStatusFailed, msg)
 		return
 	}
+
 	s.updatePhase(ctx, scanID, "clone", phaseStatusDone, "")
 	s.updateProgress(ctx, scanID, 10)
 	s.logInfo(cloneCtx, "clone phase finished successfully")
 
-	var wg sync.WaitGroup
-	errs := make([]error, 3)
+	sonarProjectKey := sonar.GenerateSonarProjectKey(req.ProjectKey, scanID.String())
+	_ = s.scanRepo.UpdateSonarProjectKey(ctx, scanID.String(), sonarProjectKey)
 
-	wg.Add(3)
+	var wg sync.WaitGroup
+	errs := make([]error, 2)
+
+	wg.Add(2)
 	go func() {
 		defer wg.Done()
 		phaseCtx := s.phaseLogger(ctx, "sonarqube")
 		s.updatePhase(phaseCtx, scanID, "sonarqube", phaseStatusRunning, "")
-		s.logInfo(phaseCtx, "starting SonarQube analysis")
-		if err := sonar.Run(phaseCtx, tmpDir, req.ProjectKey, req.Branch); err != nil {
+		s.logInfo(phaseCtx, fmt.Sprintf("starting SonarQube analysis with project key %s", sonarProjectKey))
+		if err := sonar.Run(phaseCtx, tmpDir, sonarProjectKey, req.Branch); err != nil {
 			errs[0] = err
 			s.logError(phaseCtx, err.Error())
 			s.updatePhase(phaseCtx, scanID, "sonarqube", phaseStatusFailed, err.Error())
 			return
 		}
 		s.logInfo(phaseCtx, "waiting for SonarQube compute engine task")
-		if err := s.sonarClient.WaitForCETask(phaseCtx, req.ProjectKey); err != nil {
+		analysisID, err := s.sonarClient.WaitForCETask(phaseCtx, sonarProjectKey)
+		if err != nil {
 			errs[0] = err
 			s.logError(phaseCtx, err.Error())
 			s.updatePhase(phaseCtx, scanID, "sonarqube", phaseStatusFailed, err.Error())
 			return
 		}
 		s.logInfo(phaseCtx, "fetching SonarQube summary")
-		if err := s.sonarClient.FetchAndSaveSummary(phaseCtx, scanID.String(), req.ProjectKey); err != nil {
+		if err := s.sonarClient.FetchAndSaveSummary(phaseCtx, scanID.String(), sonarProjectKey, analysisID); err != nil {
 			errs[0] = err
 			s.logError(phaseCtx, err.Error())
 			s.updatePhase(phaseCtx, scanID, "sonarqube", phaseStatusFailed, err.Error())
 			return
 		}
 		s.updatePhase(phaseCtx, scanID, "sonarqube", phaseStatusDone, "")
-		s.updateProgress(phaseCtx, scanID, 40)
+		s.updateProgress(phaseCtx, scanID, 50)
 		s.logInfo(phaseCtx, "SonarQube phase finished successfully")
 	}()
 
 	go func() {
 		defer wg.Done()
-		phaseCtx := s.phaseLogger(ctx, "owasp")
-		s.updatePhase(phaseCtx, scanID, "owasp", phaseStatusRunning, "")
-		s.logInfo(phaseCtx, "starting OWASP dependency-check")
-		owaspOut := filepath.Join(scanRoot, "owasp")
-		if err := os.MkdirAll(owaspOut, 0o755); err != nil {
-			errs[1] = err
-			s.logError(phaseCtx, err.Error())
-			s.updatePhase(phaseCtx, scanID, "owasp", phaseStatusFailed, err.Error())
-			return
-		}
-		if err := owasp.Run(phaseCtx, tmpDir, req.ProjectKey, owaspOut); err != nil {
-			errs[1] = err
-			s.logError(phaseCtx, err.Error())
-			s.updatePhase(phaseCtx, scanID, "owasp", phaseStatusFailed, err.Error())
-			return
-		}
-		s.logInfo(phaseCtx, "parsing OWASP report")
-		findings, err := owasp.Parse(filepath.Join(owaspOut, "dependency-check-report.json"))
-		if err != nil {
-			errs[1] = err
-			s.logError(phaseCtx, err.Error())
-			s.updatePhase(phaseCtx, scanID, "owasp", phaseStatusFailed, err.Error())
-			return
-		}
-		s.logInfo(phaseCtx, fmt.Sprintf("saving %d OWASP finding(s)", len(findings)))
-		if err := s.saveOWASPFindings(phaseCtx, scanID, findings); err != nil {
-			errs[1] = err
-			s.logError(phaseCtx, err.Error())
-			s.updatePhase(phaseCtx, scanID, "owasp", phaseStatusFailed, err.Error())
-			return
-		}
-		s.updatePhase(phaseCtx, scanID, "owasp", phaseStatusDone, "")
-		s.updateProgress(phaseCtx, scanID, 70)
-		s.logInfo(phaseCtx, "OWASP phase finished successfully")
-	}()
+		phaseCtx := s.phaseLogger(ctx, "dependency")
+		s.updatePhase(phaseCtx, scanID, "dependency", phaseStatusRunning, "")
+		s.logInfo(phaseCtx, "starting dependency analysis")
 
-	go func() {
-		defer wg.Done()
-		phaseCtx := s.phaseLogger(ctx, "trivy")
-		s.updatePhase(phaseCtx, scanID, "trivy", phaseStatusRunning, "")
-		s.logInfo(phaseCtx, "starting Trivy filesystem scan")
-		trivyOut := filepath.Join(scanRoot, "trivy.json")
-		if err := trivy.Run(phaseCtx, tmpDir, trivyOut); err != nil {
-			errs[2] = err
-			s.logError(phaseCtx, err.Error())
-			s.updatePhase(phaseCtx, scanID, "trivy", phaseStatusFailed, err.Error())
-			return
-		}
-		s.logInfo(phaseCtx, "parsing Trivy report")
-		findings, err := trivy.Parse(trivyOut)
+		findings, err := s.depRunner.Run(phaseCtx, tmpDir)
 		if err != nil {
-			errs[2] = err
+			errs[1] = err
 			s.logError(phaseCtx, err.Error())
-			s.updatePhase(phaseCtx, scanID, "trivy", phaseStatusFailed, err.Error())
+			s.updatePhase(phaseCtx, scanID, "dependency", phaseStatusFailed, err.Error())
 			return
 		}
-		s.logInfo(phaseCtx, fmt.Sprintf("saving %d Trivy finding(s)", len(findings)))
-		if err := s.saveTrivyFindings(phaseCtx, scanID, findings); err != nil {
-			errs[2] = err
+
+		if err := s.saveDependencyFindings(phaseCtx, scanID, findings); err != nil {
+			errs[1] = err
 			s.logError(phaseCtx, err.Error())
-			s.updatePhase(phaseCtx, scanID, "trivy", phaseStatusFailed, err.Error())
+			s.updatePhase(phaseCtx, scanID, "dependency", phaseStatusFailed, err.Error())
 			return
 		}
-		s.updatePhase(phaseCtx, scanID, "trivy", phaseStatusDone, "")
+
+		s.updatePhase(phaseCtx, scanID, "dependency", phaseStatusDone, "")
 		s.updateProgress(phaseCtx, scanID, 100)
-		s.logInfo(phaseCtx, "Trivy phase finished successfully")
+		s.logInfo(phaseCtx, fmt.Sprintf("dependency phase finished successfully with %d finding(s)", len(findings)))
 	}()
 
 	wg.Wait()
@@ -201,17 +158,19 @@ func (s *ScannerServer) runFullScan(ctx context.Context, scanID uuid.UUID, req s
 			failed++
 		}
 	}
+
 	switch failed {
 	case 0:
 		s.updateStatus(ctx, scanID, scanStatusSuccess, "")
 		s.completeScanLog(scanID, scanStatusSuccess, "")
-	case 1, 2:
+	case 1:
 		s.updateStatus(ctx, scanID, scanStatusPartial, "")
 		s.completeScanLog(scanID, scanStatusPartial, "scan completed with partial results")
 	default:
-		s.updateStatus(ctx, scanID, scanStatusFailed, "All scanners failed")
+		s.updateStatus(ctx, scanID, scanStatusFailed, "all scanners failed")
 		s.completeScanLog(scanID, scanStatusFailed, "all scanners failed")
 	}
+
 	_ = s.scanRepo.SetFinishedAt(ctx, scanID.String(), time.Now())
 }
 

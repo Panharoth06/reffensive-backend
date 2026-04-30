@@ -2,10 +2,8 @@ package service
 
 import (
 	"context"
-	"errors"
 	"strings"
 
-	"github.com/jackc/pgx/v5"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -21,7 +19,7 @@ func (s *ScannerServer) GetScanSummary(ctx context.Context, req *pb.ScanSummaryR
 	}
 
 	sonarResult, err := s.sonarRepo.GetResult(ctx, scanID.String())
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if err != nil {
 		return nil, status.Errorf(codes.Internal, "read sonar summary: %v", err)
 	}
 	depSummary, err := s.dependencySummary(ctx, scanID)
@@ -29,21 +27,17 @@ func (s *ScannerServer) GetScanSummary(ctx context.Context, req *pb.ScanSummaryR
 		return nil, err
 	}
 
-	resp := &pb.ScanSummaryResponse{
+	return &pb.ScanSummaryResponse{
 		ScanId:            scanID.String(),
-		QualityGate:       pb.QualityGateStatus_QUALITY_GATE_STATUS_UNSPECIFIED,
+		QualityGate:       qualityGateStatus(sonarResult.QualityGate),
+		Bugs:              sonarResult.Bugs,
+		Vulnerabilities:   sonarResult.Vulnerabilities,
+		CodeSmells:        sonarResult.CodeSmells,
+		Coverage:          sonarResult.Coverage,
+		Duplications:      sonarResult.Duplications,
+		SecurityHotspots:  sonarResult.SecurityHotspots,
 		DependencySummary: depSummary,
-	}
-	if err == nil {
-		resp.QualityGate = qualityGateStatus(sonarResult.QualityGate)
-		resp.Bugs = sonarResult.Bugs
-		resp.Vulnerabilities = sonarResult.Vulnerabilities
-		resp.CodeSmells = sonarResult.CodeSmells
-		resp.Coverage = sonarResult.Coverage
-		resp.Duplications = sonarResult.Duplications
-		resp.SecurityHotspots = sonarResult.SecurityHotspots
-	}
-	return resp, nil
+	}, nil
 }
 
 // ListIssues returns a paginated list of SonarQube issues for a scan.
@@ -51,6 +45,10 @@ func (s *ScannerServer) ListIssues(ctx context.Context, req *pb.ListIssuesReques
 	scan, err := s.getScan(ctx, req.GetScanId())
 	if err != nil {
 		return nil, err
+	}
+	sonarProjectKey := strings.TrimSpace(text(scan.SonarProjectKey))
+	if sonarProjectKey == "" {
+		sonarProjectKey = sonar.GenerateSonarProjectKey(scan.ProjectKey, scan.ID.String())
 	}
 	page, pageSize := normalizePage(req.GetPage(), req.GetPageSize())
 	filters := sonar.IssueFilters{}
@@ -60,7 +58,7 @@ func (s *ScannerServer) ListIssues(ctx context.Context, req *pb.ListIssuesReques
 	if req.SeverityFilter != nil && strings.TrimSpace(req.GetSeverityFilter()) != "" {
 		filters["severities"] = strings.TrimSpace(req.GetSeverityFilter())
 	}
-	issues, total, err := s.sonarClient.FetchIssues(ctx, scan.ProjectKey, filters, int(page), int(pageSize))
+	issues, total, err := s.sonarClient.FetchIssues(ctx, sonarProjectKey, filters, int(page), int(pageSize))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "fetch sonar issues: %v", err)
 	}
@@ -90,11 +88,15 @@ func (s *ScannerServer) GetFileIssues(ctx context.Context, req *pb.FileIssuesReq
 	if err != nil {
 		return nil, err
 	}
+	sonarProjectKey := strings.TrimSpace(text(scan.SonarProjectKey))
+	if sonarProjectKey == "" {
+		sonarProjectKey = sonar.GenerateSonarProjectKey(scan.ProjectKey, scan.ID.String())
+	}
 	filePath := strings.TrimSpace(req.GetFilePath())
 	if filePath == "" {
 		return nil, status.Error(codes.InvalidArgument, "file_path is required")
 	}
-	issues, _, err := s.sonarClient.FetchIssues(ctx, scan.ProjectKey, sonar.IssueFilters{"files": filePath}, 1, 500)
+	issues, _, err := s.sonarClient.FetchIssues(ctx, sonarProjectKey, sonar.IssueFilters{"files": filePath}, 1, 500)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "fetch sonar file issues: %v", err)
 	}

@@ -2,14 +2,15 @@ FROM python:3.13-slim AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.7.2 /uv /uvx /usr/local/bin/
 
-# Copy the entire repo so we have access to proto/ and fastapi-gateway/
+# Build from the repo root context so both `proto/` and `fastapi-gateway/`
+# are available during the image build.
 WORKDIR /build
-COPY . .
+COPY proto /build/proto
+COPY fastapi-gateway /app
 
 # Work directly at the final runtime path (/app) so that .venv shebangs
 # point to /app/.venv/bin/python — the correct path in the runtime image.
 WORKDIR /app
-RUN cp -r /build/fastapi-gateway/. .
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

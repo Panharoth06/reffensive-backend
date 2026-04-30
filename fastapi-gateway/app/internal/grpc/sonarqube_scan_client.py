@@ -15,8 +15,9 @@ from app.schemas.sonarqube_scan_schemas import (
     ActivityCommentResponse,
     ActivityDiffResponse,
     DescriptionSectionResponse,
+    DependencyListResponse,
+    DependencyResponse,
     DependencySummaryResponse,
-    EcosystemSummaryResponse,
     FileIssuesResponse,
     IssueActivityResponse,
     IssueDetailResponse,
@@ -24,6 +25,7 @@ from app.schemas.sonarqube_scan_schemas import (
     IssueResponse,
     IssueWhereResponse,
     IssueWhyResponse,
+    LanguageSummaryResponse,
     ListIssuesResponse,
     ProjectScanResponse,
     ProjectScansResponse,
@@ -133,6 +135,102 @@ def _issue_from_proto(item) -> IssueResponse:
     )
 
 
+def _dependency_tool_name(value: int) -> str:
+    mapping = {
+        sonarqube_pb2.DEPENDENCY_TOOL_GOVULNCHECK: "govulncheck",
+        sonarqube_pb2.DEPENDENCY_TOOL_PIP_AUDIT: "pip-audit",
+        sonarqube_pb2.DEPENDENCY_TOOL_NPM_AUDIT: "npm-audit",
+        sonarqube_pb2.DEPENDENCY_TOOL_MVN_DEPENDENCY_CHECK: "mvn-dependency-check",
+        sonarqube_pb2.DEPENDENCY_TOOL_GRADLE_DEPENDENCY_CHECK: "gradle-dependency-check",
+        sonarqube_pb2.DEPENDENCY_TOOL_COMPOSER_AUDIT: "composer-audit",
+        sonarqube_pb2.DEPENDENCY_TOOL_CARGO_AUDIT: "cargo-audit",
+        sonarqube_pb2.DEPENDENCY_TOOL_BUNDLER_AUDIT: "bundler-audit",
+        sonarqube_pb2.DEPENDENCY_TOOL_DOTNET_AUDIT: "dotnet-audit",
+        sonarqube_pb2.DEPENDENCY_TOOL_SWIFT_AUDIT: "swift-audit",
+        sonarqube_pb2.DEPENDENCY_TOOL_DART_PUB_AUDIT: "dart-pub-audit",
+        sonarqube_pb2.DEPENDENCY_TOOL_ALL: "all",
+    }
+    return mapping.get(value, "")
+
+
+def _language_name(value: int) -> str:
+    mapping = {
+        sonarqube_pb2.LANGUAGE_GO: "go",
+        sonarqube_pb2.LANGUAGE_PYTHON: "python",
+        sonarqube_pb2.LANGUAGE_NODE: "node",
+        sonarqube_pb2.LANGUAGE_JAVA: "java",
+        sonarqube_pb2.LANGUAGE_KOTLIN: "kotlin",
+        sonarqube_pb2.LANGUAGE_PHP: "php",
+        sonarqube_pb2.LANGUAGE_RUST: "rust",
+        sonarqube_pb2.LANGUAGE_RUBY: "ruby",
+        sonarqube_pb2.LANGUAGE_DOTNET: "dotnet",
+        sonarqube_pb2.LANGUAGE_SWIFT: "swift",
+        sonarqube_pb2.LANGUAGE_DART: "dart",
+    }
+    return mapping.get(value, "")
+
+
+def _dependency_tool_enum(value: str | None) -> int:
+    normalized = (value or "").strip().lower()
+    mapping = {
+        "": sonarqube_pb2.DEPENDENCY_TOOL_UNSPECIFIED,
+        "all": sonarqube_pb2.DEPENDENCY_TOOL_ALL,
+        "govulncheck": sonarqube_pb2.DEPENDENCY_TOOL_GOVULNCHECK,
+        "pip-audit": sonarqube_pb2.DEPENDENCY_TOOL_PIP_AUDIT,
+        "npm-audit": sonarqube_pb2.DEPENDENCY_TOOL_NPM_AUDIT,
+        "mvn-dependency-check": sonarqube_pb2.DEPENDENCY_TOOL_MVN_DEPENDENCY_CHECK,
+        "gradle-dependency-check": sonarqube_pb2.DEPENDENCY_TOOL_GRADLE_DEPENDENCY_CHECK,
+        "composer-audit": sonarqube_pb2.DEPENDENCY_TOOL_COMPOSER_AUDIT,
+        "cargo-audit": sonarqube_pb2.DEPENDENCY_TOOL_CARGO_AUDIT,
+        "bundler-audit": sonarqube_pb2.DEPENDENCY_TOOL_BUNDLER_AUDIT,
+        "dotnet-audit": sonarqube_pb2.DEPENDENCY_TOOL_DOTNET_AUDIT,
+        "swift-audit": sonarqube_pb2.DEPENDENCY_TOOL_SWIFT_AUDIT,
+        "dart-pub-audit": sonarqube_pb2.DEPENDENCY_TOOL_DART_PUB_AUDIT,
+    }
+    if normalized not in mapping:
+        raise ValueError(f"unsupported dependency tool: {value}")
+    return mapping[normalized]
+
+
+def _language_enum(value: str) -> int:
+    normalized = value.strip().lower()
+    mapping = {
+        "go": sonarqube_pb2.LANGUAGE_GO,
+        "python": sonarqube_pb2.LANGUAGE_PYTHON,
+        "node": sonarqube_pb2.LANGUAGE_NODE,
+        "java": sonarqube_pb2.LANGUAGE_JAVA,
+        "kotlin": sonarqube_pb2.LANGUAGE_KOTLIN,
+        "php": sonarqube_pb2.LANGUAGE_PHP,
+        "rust": sonarqube_pb2.LANGUAGE_RUST,
+        "ruby": sonarqube_pb2.LANGUAGE_RUBY,
+        "dotnet": sonarqube_pb2.LANGUAGE_DOTNET,
+        "swift": sonarqube_pb2.LANGUAGE_SWIFT,
+        "dart": sonarqube_pb2.LANGUAGE_DART,
+    }
+    if normalized not in mapping:
+        raise ValueError(f"unsupported dependency language: {value}")
+    return mapping[normalized]
+
+
+def _dependency_from_proto(item) -> DependencyResponse:
+    return DependencyResponse(
+        package_name=item.package_name,
+        ecosystem=item.ecosystem,
+        installed_version=item.installed_version,
+        fixed_version=item.fixed_version,
+        latest_version=item.latest_version,
+        cve_id=item.cve_id,
+        severity=item.severity,
+        license=item.license,
+        is_outdated=item.is_outdated,
+        is_vulnerable=item.is_vulnerable,
+        has_license_issue=item.has_license_issue,
+        description=item.description,
+        tool=_dependency_tool_name(item.tool),
+        language=_language_name(item.language),
+    )
+
+
 def _scan_status_from_proto(item) -> ScanStatusResponse:
     return ScanStatusResponse(
         scan_id=item.scan_id,
@@ -179,9 +277,15 @@ def _dependency_summary_from_proto(item) -> DependencySummaryResponse:
         high=item.high,
         medium=item.medium,
         low=item.low,
-        by_ecosystem=[
-            EcosystemSummaryResponse(ecosystem=row.ecosystem, total=row.total)
-            for row in item.by_ecosystem
+        by_language=[
+            LanguageSummaryResponse(
+                language=_language_name(row.language),
+                total_dependencies=row.total_dependencies,
+                vulnerable_dependencies=row.vulnerable_dependencies,
+                outdated_dependencies=row.outdated_dependencies,
+                license_issues=row.license_issues,
+            )
+            for row in item.by_language
         ],
     )
 
@@ -453,6 +557,61 @@ class SonarqubeScanClient:
         except grpc.RpcError as exc:
             raise_for_grpc_error(exc)
         return FileIssuesResponse(issues=[_issue_from_proto(item) for item in response.issues])
+
+    def list_dependencies(
+        self,
+        scan_id: str,
+        tool: str | None,
+        severity: str | None,
+        languages: list[str] | None,
+        outdated_only: bool,
+        vulnerable_only: bool,
+        page: int,
+        page_size: int,
+        user_id: str,
+        api_key_id: str | None = None,
+        api_project_id: str | None = None,
+    ) -> DependencyListResponse:
+        try:
+            stub = self._make_stub_with_user(user_id, api_key_id=api_key_id, api_project_id=api_project_id)
+            response = stub.ListDependencies(
+                sonarqube_pb2.ListDependenciesRequest(
+                    scan_id=scan_id,
+                    tool=_dependency_tool_enum(tool),
+                    severity=severity or "",
+                    languages=[_language_enum(item) for item in (languages or []) if item.strip()],
+                    outdated_only=outdated_only,
+                    vulnerable_only=vulnerable_only,
+                    page=page,
+                    page_size=page_size,
+                ),
+                timeout=20.0,
+            )
+        except grpc.RpcError as exc:
+            raise_for_grpc_error(exc)
+        return DependencyListResponse(
+            dependencies=[_dependency_from_proto(item) for item in response.dependencies],
+            page=response.page,
+            page_size=response.page_size,
+            total=response.total,
+        )
+
+    def get_dependency_summary(
+        self,
+        scan_id: str,
+        user_id: str,
+        api_key_id: str | None = None,
+        api_project_id: str | None = None,
+    ) -> DependencySummaryResponse:
+        try:
+            stub = self._make_stub_with_user(user_id, api_key_id=api_key_id, api_project_id=api_project_id)
+            response = stub.GetDependencySummary(
+                sonarqube_pb2.ScanSummaryRequest(scan_id=scan_id),
+                timeout=20.0,
+            )
+        except grpc.RpcError as exc:
+            raise_for_grpc_error(exc)
+        return _dependency_summary_from_proto(response)
 
     def list_project_scans(
         self,

@@ -28,14 +28,11 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11 && \
     go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
 
 ENV PATH="/go/bin:${PATH}"
-
-RUN go mod download
 ARG GOPROXY=https://proxy.golang.org,https://goproxy.cn,https://goproxy.io,direct
 ARG GOSUMDB=sum.golang.org
 ENV GOPROXY=${GOPROXY}
 ENV GOSUMDB=${GOSUMDB}
 
-COPY go.mod ./
 RUN set -eux; \
     i=1; \
     until [ "$i" -gt 5 ]; do \
@@ -52,6 +49,7 @@ RUN set -eux; \
 RUN apk add --no-cache make bash git protoc protobuf-dev \
     && go install google.golang.org/protobuf/cmd/protoc-gen-go@latest \
     && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest \
+    && go install golang.org/x/vuln/cmd/govulncheck@latest \
     && ln -s /root/go/bin/protoc-gen-go /usr/bin/ \
     && ln -s /root/go/bin/protoc-gen-go-grpc /usr/bin/
 
@@ -63,82 +61,75 @@ RUN make proto-go
 
 WORKDIR /src/go-server
 
-COPY . .
 COPY go-server/ ./
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/go-server ./cmd
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/go-server ./cmd/server && \
     CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/sonarqube-worker ./cmd/sonarqube-worker
 
 # ── runtime ───────────────────────────────────────────────────────────────
-FROM alpine:3.23 AS runtime
+FROM swift:6.2.3-jammy AS runtime
 
-ARG nmap_ver=7.98
 ARG sonar_scanner_ver=7.2.0.5079
-ARG dependency_check_ver=12.1.0
 
-# Runtime libs nmap needs
-RUN apk add --no-cache \
-        ca-certificates \
-        git \
-        libgcc libstdc++ \
-        libcrypto3 libssl3 \
-        libpcap \
-        libssh2 \
-        lua5.4-libs \
-        zlib \
+ENV DEBIAN_FRONTEND=noninteractive
+ENV DOTNET_ROOT="/root/.dotnet"
+ENV PATH="/root/.cargo/bin:/root/.dotnet:${PATH}"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
         bash \
+        build-essential \
+        ca-certificates \
         curl \
+        git \
+        gnupg \
+        libicu70 \
+        libssl3 \
+        maven \
+        gradle \
+        nodejs \
+        npm \
+        openjdk-17-jre-headless \
+        php-cli \
+        python3 \
+        python3-pip \
+        python3-venv \
+        ruby-full \
         unzip \
-        openjdk17-jre \
-    && update-ca-certificates
+        wget \
+        zlib1g \
+    && rm -rf /var/lib/apt/lists/*
 
-# # Build nmap from source (same as your scanner Dockerfile)
-# RUN apk add --no-cache --virtual .build-deps \
-#         linux-headers openssl-dev libpcap-dev libssh2-dev \
-#         lua5.4-dev pcre-dev zlib-dev \
-#         autoconf automake g++ libtool make curl \
-#     && curl -fL -o /tmp/nmap.tar.bz2 \
-#         https://nmap.org/dist/nmap-${nmap_ver}.tar.bz2 \
-#     && tar -xjf /tmp/nmap.tar.bz2 -C /tmp \
-#     && cd /tmp/nmap* \
-#     && sed -i '22,25d' libdnet-stripped/acconfig.h \
-#     && autoreconf libpcre libdnet-stripped -ivf \
-#     && ./configure \
-#         --prefix=/usr \
-#         --without-zenmap \
-#         --without-nmap-update \
-#         --with-liblua=/usr/lua5.4 \
-#         --with-libpcap=yes --with-libpcre=yes \
-#         --with-libssh2=yes --with-libz=yes --with-openssl=yes \
-#     && make && make install \
-#     && apk del .build-deps \
-#     && rm -rf /var/cache/apk/* /tmp/nmap*
+RUN python3 -m venv /opt/pip-tools && \
+    /opt/pip-tools/bin/pip install --no-cache-dir --upgrade pip && \
+    /opt/pip-tools/bin/pip install --no-cache-dir pip-audit && \
+    ln -sf /opt/pip-tools/bin/pip-audit /usr/local/bin/pip-audit
 
-# Install Trivy - pre-download database to avoid download failures at runtime
-RUN curl -sSfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin && \
-    trivy image --download-db-only || echo "Warning: Could not download Trivy DB during build (offline mode will be used)"
+RUN curl -fsSL https://getcomposer.org/installer -o /tmp/composer-setup.php && \
+    php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer && \
+    rm -f /tmp/composer-setup.php
 
-# Install SonarQube Scanner
+RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable && \
+    cargo install cargo-audit --locked
+
+RUN gem install bundler-audit --no-document
+
+RUN curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh && \
+    bash /tmp/dotnet-install.sh --channel 8.0 --install-dir /root/.dotnet && \
+    rm -f /tmp/dotnet-install.sh
+
+RUN wget -qO- https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/dart.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/dart.gpg arch=amd64] https://storage.googleapis.com/download.dartlang.org/linux/debian stable main" > /etc/apt/sources.list.d/dart_stable.list && \
+    apt-get update && apt-get install -y --no-install-recommends dart && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN curl -fsSL -o /tmp/sonar-scanner.zip "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${sonar_scanner_ver}.zip" && \
     unzip -q /tmp/sonar-scanner.zip -d /opt && \
     ln -sf "/opt/sonar-scanner-${sonar_scanner_ver}/bin/sonar-scanner" /usr/local/bin/sonar-scanner && \
-    curl -fsSL -o /tmp/dependency-check.zip "https://github.com/jeremylong/DependencyCheck/releases/download/v${dependency_check_ver}/dependency-check-${dependency_check_ver}-release.zip" && \
-    unzip -q /tmp/dependency-check.zip -d /opt && \
-    ln -sf /opt/dependency-check/bin/dependency-check.sh /usr/local/bin/dependency-check.sh && \
-    rm -f /tmp/sonar-scanner.zip /tmp/dependency-check.zip && \
-    chmod +x /opt/dependency-check/bin/dependency-check.sh
-
-# Pre-download OWASP Dependency-Check NVD database to avoid timeout at runtime
-RUN mkdir -p /root/.m2/repository/org/owasp/dependency-check/data && \
-    /opt/dependency-check/bin/dependency-check.sh --updateonly --data /root/.m2/repository/org/owasp/dependency-check/data 2>&1 || \
-    echo "Warning: Could not pre-download NVD database (will retry at runtime)"
-
-# Create cache directories with proper permissions
-RUN mkdir -p /root/.cache/trivy && chmod -R 777 /root/.cache/trivy && \
-    mkdir -p /root/.m2/repository/org/owasp/dependency-check/data && chmod -R 777 /root/.m2/repository
+    rm -f /tmp/sonar-scanner.zip
 
 COPY --from=builder /out/go-server /go-server
 COPY --from=builder /out/sonarqube-worker /sonarqube-worker
+COPY --from=builder /go/bin/govulncheck /usr/local/bin/govulncheck
 
 EXPOSE 50051
 ENTRYPOINT ["/go-server"]

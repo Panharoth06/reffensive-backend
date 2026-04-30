@@ -22,6 +22,37 @@ enum QualityGateStatus {
   QUALITY_GATE_STATUS_ERROR = 3;
 }
 
+enum DependencyTool {
+  DEPENDENCY_TOOL_UNSPECIFIED = 0;
+  DEPENDENCY_TOOL_GOVULNCHECK = 1;
+  DEPENDENCY_TOOL_PIP_AUDIT = 2;
+  DEPENDENCY_TOOL_NPM_AUDIT = 3;
+  DEPENDENCY_TOOL_MVN_DEPENDENCY_CHECK = 4;
+  DEPENDENCY_TOOL_GRADLE_DEPENDENCY_CHECK = 5;
+  DEPENDENCY_TOOL_COMPOSER_AUDIT = 6;
+  DEPENDENCY_TOOL_CARGO_AUDIT = 7;
+  DEPENDENCY_TOOL_BUNDLER_AUDIT = 8;
+  DEPENDENCY_TOOL_DOTNET_AUDIT = 9;
+  DEPENDENCY_TOOL_SWIFT_AUDIT = 10;
+  DEPENDENCY_TOOL_DART_PUB_AUDIT = 11;
+  DEPENDENCY_TOOL_ALL = 99;
+}
+
+enum Language {
+  LANGUAGE_UNSPECIFIED = 0;
+  LANGUAGE_GO = 1;
+  LANGUAGE_PYTHON = 2;
+  LANGUAGE_NODE = 3;
+  LANGUAGE_JAVA = 4;
+  LANGUAGE_KOTLIN = 5;
+  LANGUAGE_PHP = 6;
+  LANGUAGE_RUST = 7;
+  LANGUAGE_RUBY = 8;
+  LANGUAGE_DOTNET = 9;
+  LANGUAGE_SWIFT = 10;
+  LANGUAGE_DART = 11;
+}
+
 service SonarqubeService {
   rpc TriggerScan      (TriggerScanRequest)   returns (TriggerScanResponse);
   rpc GetScanStatus    (ScanStatusRequest)    returns (ScanStatusResponse);
@@ -238,14 +269,15 @@ message Dependency {
   bool is_vulnerable = 10;
   bool has_license_issue = 11;
   string description = 12;
-  string tool = 13;
+  DependencyTool tool = 13;
+  Language language = 14;
 }
 
 message ListDependenciesRequest {
   string scan_id = 1;
-  string tool = 2;
+  DependencyTool tool = 2;
   string severity = 3;
-  repeated string ecosystems = 4;
+  repeated Language languages = 4;
   bool outdated_only = 5;
   bool vulnerable_only = 6;
   int32 page = 7;
@@ -259,9 +291,12 @@ message ListDependenciesResponse {
   int32 total = 4;
 }
 
-message EcosystemSummary {
-  string ecosystem = 1;
-  int32 total = 2;
+message LanguageSummary {
+  Language language = 1;
+  int32 total_dependencies = 2;
+  int32 vulnerable_dependencies = 3;
+  int32 outdated_dependencies = 4;
+  int32 license_issues = 5;
 }
 
 message DependencySummaryResponse {
@@ -274,7 +309,7 @@ message DependencySummaryResponse {
   int32 high = 7;
   int32 medium = 8;
   int32 low = 9;
-  repeated EcosystemSummary by_ecosystem = 10;
+  repeated LanguageSummary by_language = 10;
 }
 
 message ProjectScansRequest {

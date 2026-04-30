@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"golang.org/x/sync/errgroup"
 
 	db "go-server/internal/database/sqlc"
@@ -187,11 +188,26 @@ func NewClientWithConfig(cfg ClientConfig) (*Client, error) {
 	}, nil
 }
 
+func GenerateSonarProjectKey(projectKey, scanID string) string {
+	projectKey = strings.TrimSpace(projectKey)
+	shortID := strings.ReplaceAll(strings.TrimSpace(scanID), "-", "")
+	if len(shortID) > 8 {
+		shortID = shortID[:8]
+	}
+	if projectKey == "" {
+		return shortID
+	}
+	if shortID == "" {
+		return projectKey
+	}
+	return fmt.Sprintf("%s-%s", projectKey, shortID)
+}
+
 // Waiting CE Task From SonarQube
-func (c *Client) WaitForCETask(ctx context.Context, projectKey string) error {
+func (c *Client) WaitForCETask(ctx context.Context, projectKey string) (string, error) {
 	projectKey = strings.TrimSpace(projectKey)
 	if projectKey == "" {
-		return errors.New("sonar project key is required")
+		return "", errors.New("sonar project key is required")
 	}
 
 	waitCtx, cancel := context.WithTimeout(ctx, defaultCETaskWait)
@@ -201,32 +217,32 @@ func (c *Client) WaitForCETask(ctx context.Context, projectKey string) error {
 	defer ticker.Stop()
 
 	for {
-		status, hasTask, err := c.fetchCETaskStatus(waitCtx, projectKey)
+		status, analysisID, hasTask, err := c.fetchCETaskStatus(waitCtx, projectKey)
 		if err != nil {
-			return err
+			return "", err
 		}
 
 		switch strings.ToUpper(status) {
 		case "SUCCESS":
-			return nil
+			return analysisID, nil
 		case "FAILED", "CANCELED", "CANCELLED":
-			return fmt.Errorf("sonar compute engine task ended with status %s", status)
+			return "", fmt.Errorf("sonar compute engine task ended with status %s", status)
 		case "":
 			if !hasTask {
-				return nil
+				return "", nil
 			}
 		}
 
 		select {
 		case <-waitCtx.Done():
-			return fmt.Errorf("waiting for sonar compute engine task timed out after %s: %w", defaultCETaskWait, waitCtx.Err())
+			return "", fmt.Errorf("waiting for sonar compute engine task timed out after %s: %w", defaultCETaskWait, waitCtx.Err())
 		case <-ticker.C:
 		}
 	}
 }
 
 // FetchAndSaveSummary fetches SonarQube quality gate status and measures
-func (c *Client) FetchAndSaveSummary(ctx context.Context, scanID, projectKey string) error {
+func (c *Client) FetchAndSaveSummary(ctx context.Context, scanID, projectKey, analysisID string) error {
 	if c.store == nil {
 		return errors.New("database store is required to save sonar summary")
 	}
@@ -266,6 +282,7 @@ func (c *Client) FetchAndSaveSummary(ctx context.Context, scanID, projectKey str
 
 	_, err = c.store.UpsertScanSonarResult(ctx, db.UpsertScanSonarResultParams{
 		ScanID:           scanUUID,
+		AnalysisID:       textValue(analysisID),
 		QualityGate:      normalizeQualityGate(gate.ProjectStatus.Status),
 		Bugs:             int32FromMetric(values["bugs"]),
 		Vulnerabilities:  int32FromMetric(values["vulnerabilities"]),
@@ -279,6 +296,43 @@ func (c *Client) FetchAndSaveSummary(ctx context.Context, scanID, projectKey str
 		return fmt.Errorf("save sonar summary: %w", err)
 	}
 	return nil
+}
+
+func (c *Client) DeleteProject(ctx context.Context, projectKey string) error {
+	projectKey = strings.TrimSpace(projectKey)
+	if projectKey == "" {
+		return errors.New("sonar project key is required")
+	}
+
+	reqURL := c.baseURL + "/api/projects/delete?project=" + url.QueryEscape(projectKey)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", "Bearer "+c.token)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	body, readErr := io.ReadAll(resp.Body)
+	closeErr := resp.Body.Close()
+	if readErr != nil {
+		return readErr
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return fmt.Errorf("delete sonar project %s returned %s: %s", projectKey, resp.Status, strings.TrimSpace(string(body)))
+	}
+	return nil
+}
+
+func textValue(value string) pgtype.Text {
+	value = strings.TrimSpace(value)
+	return pgtype.Text{String: value, Valid: value != ""}
 }
 
 // FetchIssues fetches a page of issues for the given project key and filters, and returns the issues WITH total count of matching issues
@@ -377,18 +431,18 @@ func (c *Client) FetchIssueDetail(ctx context.Context, issueKey string) (*IssueD
 }
 
 // Fetch CE Task Status, return status, whether task exists, error
-func (c *Client) fetchCETaskStatus(ctx context.Context, projectKey string) (string, bool, error) {
+func (c *Client) fetchCETaskStatus(ctx context.Context, projectKey string) (string, string, bool, error) {
 	var response ceComponentResponse
 	if err := c.getJSON(ctx, "/api/ce/component", url.Values{"component": {projectKey}}, &response); err != nil {
-		return "", false, fmt.Errorf("fetch sonar compute engine component: %w", err)
+		return "", "", false, fmt.Errorf("fetch sonar compute engine component: %w", err)
 	}
 	if response.Current.Status != "" {
-		return response.Current.Status, true, nil
+		return response.Current.Status, response.Current.AnalysisID, true, nil
 	}
 	if len(response.Queue) > 0 {
-		return response.Queue[0].Status, true, nil
+		return response.Queue[0].Status, response.Queue[0].AnalysisID, true, nil
 	}
-	return "", false, nil
+	return "", "", false, nil
 }
 
 // Fetches a sonar issue by Project key. Returns an error if the issue is not found or if the request fails.
@@ -567,7 +621,8 @@ type ceComponentResponse struct {
 }
 
 type ceTask struct {
-	Status string `json:"status"`
+	Status     string `json:"status"`
+	AnalysisID string `json:"analysisId"`
 }
 
 type qualityGateResponse struct {

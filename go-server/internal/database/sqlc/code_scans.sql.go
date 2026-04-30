@@ -19,8 +19,9 @@ WHERE scan_id = $1
   AND ($2::text = '' OR tool = $2)
   AND ($3::text = '' OR cve_severity = $3)
   AND ($4::text[] IS NULL OR cardinality($4::text[]) = 0 OR ecosystem = ANY($4::text[]))
-  AND (NOT $5::boolean OR is_outdated)
-  AND (NOT $6::boolean OR is_vulnerable)
+  AND ($5::text[] IS NULL OR cardinality($5::text[]) = 0 OR language = ANY($5::text[]))
+  AND (NOT $6::boolean OR is_outdated)
+  AND (NOT $7::boolean OR is_vulnerable)
 `
 
 type CountScanDependencyResultsParams struct {
@@ -28,8 +29,9 @@ type CountScanDependencyResultsParams struct {
 	Column2 string    `json:"column_2"`
 	Column3 string    `json:"column_3"`
 	Column4 []string  `json:"column_4"`
-	Column5 bool      `json:"column_5"`
+	Column5 []string  `json:"column_5"`
 	Column6 bool      `json:"column_6"`
+	Column7 bool      `json:"column_7"`
 }
 
 func (q *Queries) CountScanDependencyResults(ctx context.Context, arg CountScanDependencyResultsParams) (int64, error) {
@@ -40,6 +42,7 @@ func (q *Queries) CountScanDependencyResults(ctx context.Context, arg CountScanD
 		arg.Column4,
 		arg.Column5,
 		arg.Column6,
+		arg.Column7,
 	)
 	var count int64
 	err := row.Scan(&count)
@@ -125,7 +128,7 @@ INSERT INTO scans (
     progress
 )
 VALUES ($1, $2, $3, $4, $5, 'PENDING', 0)
-RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error
+RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error, sonar_project_key
 `
 
 type CreateUnifiedScanParams struct {
@@ -172,6 +175,7 @@ func (q *Queries) CreateUnifiedScan(ctx context.Context, arg CreateUnifiedScanPa
 		&i.UpdatedAt,
 		&i.CloneStatus,
 		&i.CloneError,
+		&i.SonarProjectKey,
 	)
 	return i, err
 }
@@ -315,8 +319,67 @@ func (q *Queries) GetScanDependencySummaryByEcosystem(ctx context.Context, scanI
 	return items, nil
 }
 
+const getScanDependencySummaryByLanguage = `-- name: GetScanDependencySummaryByLanguage :many
+SELECT
+    language,
+    COUNT(*)::int AS total,
+    COUNT(*) FILTER (WHERE is_vulnerable)::int AS vulnerable,
+    COUNT(*) FILTER (WHERE is_outdated)::int AS outdated,
+    COUNT(*) FILTER (WHERE has_license_issue)::int AS license_issues,
+    COUNT(*) FILTER (WHERE cve_severity = 'CRITICAL')::int AS critical,
+    COUNT(*) FILTER (WHERE cve_severity = 'HIGH')::int AS high,
+    COUNT(*) FILTER (WHERE cve_severity = 'MEDIUM')::int AS medium,
+    COUNT(*) FILTER (WHERE cve_severity = 'LOW')::int AS low
+FROM scan_dependency_results
+WHERE scan_id = $1
+GROUP BY language
+ORDER BY language ASC
+`
+
+type GetScanDependencySummaryByLanguageRow struct {
+	Language      string `json:"language"`
+	Total         int32  `json:"total"`
+	Vulnerable    int32  `json:"vulnerable"`
+	Outdated      int32  `json:"outdated"`
+	LicenseIssues int32  `json:"license_issues"`
+	Critical      int32  `json:"critical"`
+	High          int32  `json:"high"`
+	Medium        int32  `json:"medium"`
+	Low           int32  `json:"low"`
+}
+
+func (q *Queries) GetScanDependencySummaryByLanguage(ctx context.Context, scanID uuid.UUID) ([]GetScanDependencySummaryByLanguageRow, error) {
+	rows, err := q.db.Query(ctx, getScanDependencySummaryByLanguage, scanID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetScanDependencySummaryByLanguageRow
+	for rows.Next() {
+		var i GetScanDependencySummaryByLanguageRow
+		if err := rows.Scan(
+			&i.Language,
+			&i.Total,
+			&i.Vulnerable,
+			&i.Outdated,
+			&i.LicenseIssues,
+			&i.Critical,
+			&i.High,
+			&i.Medium,
+			&i.Low,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getScanSonarResult = `-- name: GetScanSonarResult :one
-SELECT id, scan_id, quality_gate, bugs, vulnerabilities, code_smells, coverage, duplications, security_hotspots, raw_response, created_at FROM scan_sonar_results
+SELECT id, scan_id, quality_gate, bugs, vulnerabilities, code_smells, coverage, duplications, security_hotspots, raw_response, created_at, analysis_id FROM scan_sonar_results
 WHERE scan_id = $1
 `
 
@@ -335,12 +398,13 @@ func (q *Queries) GetScanSonarResult(ctx context.Context, scanID uuid.UUID) (Sca
 		&i.SecurityHotspots,
 		&i.RawResponse,
 		&i.CreatedAt,
+		&i.AnalysisID,
 	)
 	return i, err
 }
 
 const getUnifiedScan = `-- name: GetUnifiedScan :one
-SELECT id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error FROM scans
+SELECT id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error, sonar_project_key FROM scans
 WHERE id = $1
 `
 
@@ -374,20 +438,22 @@ func (q *Queries) GetUnifiedScan(ctx context.Context, id uuid.UUID) (Scan, error
 		&i.UpdatedAt,
 		&i.CloneStatus,
 		&i.CloneError,
+		&i.SonarProjectKey,
 	)
 	return i, err
 }
 
 const listScanDependencyResults = `-- name: ListScanDependencyResults :many
-SELECT id, scan_id, tool, finding_key, package_name, ecosystem, installed_version, fixed_version, latest_version, cve_id, cve_severity, license, is_outdated, is_vulnerable, has_license_issue, description, raw_finding, created_at FROM scan_dependency_results
+SELECT id, scan_id, tool, finding_key, package_name, ecosystem, installed_version, fixed_version, latest_version, cve_id, cve_severity, license, is_outdated, is_vulnerable, has_license_issue, description, raw_finding, created_at, language FROM scan_dependency_results
 WHERE scan_id = $1
   AND ($2::text = '' OR tool = $2)
   AND ($3::text = '' OR cve_severity = $3)
   AND ($4::text[] IS NULL OR cardinality($4::text[]) = 0 OR ecosystem = ANY($4::text[]))
-  AND (NOT $5::boolean OR is_outdated)
-  AND (NOT $6::boolean OR is_vulnerable)
+  AND ($5::text[] IS NULL OR cardinality($5::text[]) = 0 OR language = ANY($5::text[]))
+  AND (NOT $6::boolean OR is_outdated)
+  AND (NOT $7::boolean OR is_vulnerable)
 ORDER BY created_at DESC
-LIMIT $7 OFFSET $8
+LIMIT $8 OFFSET $9
 `
 
 type ListScanDependencyResultsParams struct {
@@ -395,8 +461,9 @@ type ListScanDependencyResultsParams struct {
 	Column2 string    `json:"column_2"`
 	Column3 string    `json:"column_3"`
 	Column4 []string  `json:"column_4"`
-	Column5 bool      `json:"column_5"`
+	Column5 []string  `json:"column_5"`
 	Column6 bool      `json:"column_6"`
+	Column7 bool      `json:"column_7"`
 	Limit   int32     `json:"limit"`
 	Offset  int32     `json:"offset"`
 }
@@ -409,6 +476,7 @@ func (q *Queries) ListScanDependencyResults(ctx context.Context, arg ListScanDep
 		arg.Column4,
 		arg.Column5,
 		arg.Column6,
+		arg.Column7,
 		arg.Limit,
 		arg.Offset,
 	)
@@ -438,6 +506,7 @@ func (q *Queries) ListScanDependencyResults(ctx context.Context, arg ListScanDep
 			&i.Description,
 			&i.RawFinding,
 			&i.CreatedAt,
+			&i.Language,
 		); err != nil {
 			return nil, err
 		}
@@ -484,7 +553,7 @@ func (q *Queries) ListSnapshotsByRepository(ctx context.Context, repositoryID uu
 }
 
 const listUnifiedProjectScans = `-- name: ListUnifiedProjectScans :many
-SELECT id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error FROM scans
+SELECT id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error, sonar_project_key FROM scans
 WHERE project_key = $1
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3
@@ -532,6 +601,7 @@ func (q *Queries) ListUnifiedProjectScans(ctx context.Context, arg ListUnifiedPr
 			&i.UpdatedAt,
 			&i.CloneStatus,
 			&i.CloneError,
+			&i.SonarProjectKey,
 		); err != nil {
 			return nil, err
 		}
@@ -544,7 +614,7 @@ func (q *Queries) ListUnifiedProjectScans(ctx context.Context, arg ListUnifiedPr
 }
 
 const listUnifiedUserScans = `-- name: ListUnifiedUserScans :many
-SELECT id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error FROM scans
+SELECT id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error, sonar_project_key FROM scans
 WHERE user_id = $1
   AND ($2::text = '' OR project_key = $2)
 ORDER BY created_at DESC
@@ -599,6 +669,7 @@ func (q *Queries) ListUnifiedUserScans(ctx context.Context, arg ListUnifiedUserS
 			&i.UpdatedAt,
 			&i.CloneStatus,
 			&i.CloneError,
+			&i.SonarProjectKey,
 		); err != nil {
 			return nil, err
 		}
@@ -615,7 +686,7 @@ UPDATE scans
 SET finished_at = now(),
     updated_at = now()
 WHERE id = $1
-RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error
+RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error, sonar_project_key
 `
 
 func (q *Queries) MarkUnifiedScanFinished(ctx context.Context, id uuid.UUID) (Scan, error) {
@@ -648,6 +719,7 @@ func (q *Queries) MarkUnifiedScanFinished(ctx context.Context, id uuid.UUID) (Sc
 		&i.UpdatedAt,
 		&i.CloneStatus,
 		&i.CloneError,
+		&i.SonarProjectKey,
 	)
 	return i, err
 }
@@ -658,7 +730,7 @@ SET status = 'IN_PROGRESS',
     started_at = COALESCE(started_at, now()),
     updated_at = now()
 WHERE id = $1
-RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error
+RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error, sonar_project_key
 `
 
 func (q *Queries) MarkUnifiedScanStarted(ctx context.Context, id uuid.UUID) (Scan, error) {
@@ -691,6 +763,7 @@ func (q *Queries) MarkUnifiedScanStarted(ctx context.Context, id uuid.UUID) (Sca
 		&i.UpdatedAt,
 		&i.CloneStatus,
 		&i.CloneError,
+		&i.SonarProjectKey,
 	)
 	return i, err
 }
@@ -728,7 +801,7 @@ SET clone_status = $2,
     clone_error = $3,
     updated_at = now()
 WHERE id = $1
-RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error
+RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error, sonar_project_key
 `
 
 type UpdateUnifiedScanClonePhaseParams struct {
@@ -767,6 +840,7 @@ func (q *Queries) UpdateUnifiedScanClonePhase(ctx context.Context, arg UpdateUni
 		&i.UpdatedAt,
 		&i.CloneStatus,
 		&i.CloneError,
+		&i.SonarProjectKey,
 	)
 	return i, err
 }
@@ -777,7 +851,7 @@ SET owasp_status = $2,
     owasp_error = $3,
     updated_at = now()
 WHERE id = $1
-RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error
+RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error, sonar_project_key
 `
 
 type UpdateUnifiedScanOwaspPhaseParams struct {
@@ -816,6 +890,7 @@ func (q *Queries) UpdateUnifiedScanOwaspPhase(ctx context.Context, arg UpdateUni
 		&i.UpdatedAt,
 		&i.CloneStatus,
 		&i.CloneError,
+		&i.SonarProjectKey,
 	)
 	return i, err
 }
@@ -825,7 +900,7 @@ UPDATE scans
 SET progress = GREATEST(progress, $2),
     updated_at = now()
 WHERE id = $1
-RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error
+RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error, sonar_project_key
 `
 
 type UpdateUnifiedScanProgressParams struct {
@@ -863,6 +938,55 @@ func (q *Queries) UpdateUnifiedScanProgress(ctx context.Context, arg UpdateUnifi
 		&i.UpdatedAt,
 		&i.CloneStatus,
 		&i.CloneError,
+		&i.SonarProjectKey,
+	)
+	return i, err
+}
+
+const updateUnifiedScanSonarProjectKey = `-- name: UpdateUnifiedScanSonarProjectKey :one
+UPDATE scans
+SET sonar_project_key = $2,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error, sonar_project_key
+`
+
+type UpdateUnifiedScanSonarProjectKeyParams struct {
+	ID              uuid.UUID   `json:"id"`
+	SonarProjectKey pgtype.Text `json:"sonar_project_key"`
+}
+
+func (q *Queries) UpdateUnifiedScanSonarProjectKey(ctx context.Context, arg UpdateUnifiedScanSonarProjectKeyParams) (Scan, error) {
+	row := q.db.QueryRow(ctx, updateUnifiedScanSonarProjectKey, arg.ID, arg.SonarProjectKey)
+	var i Scan
+	err := row.Scan(
+		&i.ID,
+		&i.ProjectKey,
+		&i.RepositoryID,
+		&i.RepositorySnapshotID,
+		&i.RepositoryUrl,
+		&i.SourceDir,
+		&i.Branch,
+		&i.CommitSha,
+		&i.SourceHash,
+		&i.ScanConfigHash,
+		&i.UserID,
+		&i.Status,
+		&i.SonarqubeStatus,
+		&i.OwaspStatus,
+		&i.TrivyStatus,
+		&i.Progress,
+		&i.ErrorMessage,
+		&i.SonarqubeError,
+		&i.OwaspError,
+		&i.TrivyError,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CloneStatus,
+		&i.CloneError,
+		&i.SonarProjectKey,
 	)
 	return i, err
 }
@@ -873,7 +997,7 @@ SET sonarqube_status = $2,
     sonarqube_error = $3,
     updated_at = now()
 WHERE id = $1
-RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error
+RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error, sonar_project_key
 `
 
 type UpdateUnifiedScanSonarqubePhaseParams struct {
@@ -912,6 +1036,7 @@ func (q *Queries) UpdateUnifiedScanSonarqubePhase(ctx context.Context, arg Updat
 		&i.UpdatedAt,
 		&i.CloneStatus,
 		&i.CloneError,
+		&i.SonarProjectKey,
 	)
 	return i, err
 }
@@ -922,7 +1047,7 @@ SET status = $2,
     error_message = $3,
     updated_at = now()
 WHERE id = $1
-RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error
+RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error, sonar_project_key
 `
 
 type UpdateUnifiedScanStatusParams struct {
@@ -961,6 +1086,7 @@ func (q *Queries) UpdateUnifiedScanStatus(ctx context.Context, arg UpdateUnified
 		&i.UpdatedAt,
 		&i.CloneStatus,
 		&i.CloneError,
+		&i.SonarProjectKey,
 	)
 	return i, err
 }
@@ -971,7 +1097,7 @@ SET trivy_status = $2,
     trivy_error = $3,
     updated_at = now()
 WHERE id = $1
-RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error
+RETURNING id, project_key, repository_id, repository_snapshot_id, repository_url, source_dir, branch, commit_sha, source_hash, scan_config_hash, user_id, status, sonarqube_status, owasp_status, trivy_status, progress, error_message, sonarqube_error, owasp_error, trivy_error, started_at, finished_at, created_at, updated_at, clone_status, clone_error, sonar_project_key
 `
 
 type UpdateUnifiedScanTrivyPhaseParams struct {
@@ -1010,6 +1136,7 @@ func (q *Queries) UpdateUnifiedScanTrivyPhase(ctx context.Context, arg UpdateUni
 		&i.UpdatedAt,
 		&i.CloneStatus,
 		&i.CloneError,
+		&i.SonarProjectKey,
 	)
 	return i, err
 }
@@ -1019,6 +1146,7 @@ INSERT INTO scan_dependency_results (
     scan_id,
     tool,
     finding_key,
+    language,
     package_name,
     ecosystem,
     installed_version,
@@ -1033,9 +1161,10 @@ INSERT INTO scan_dependency_results (
     description,
     raw_finding
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 ON CONFLICT (scan_id, finding_key) DO UPDATE SET
     tool = EXCLUDED.tool,
+    language = EXCLUDED.language,
     package_name = EXCLUDED.package_name,
     ecosystem = EXCLUDED.ecosystem,
     installed_version = EXCLUDED.installed_version,
@@ -1049,13 +1178,14 @@ ON CONFLICT (scan_id, finding_key) DO UPDATE SET
     has_license_issue = EXCLUDED.has_license_issue,
     description = EXCLUDED.description,
     raw_finding = EXCLUDED.raw_finding
-RETURNING id, scan_id, tool, finding_key, package_name, ecosystem, installed_version, fixed_version, latest_version, cve_id, cve_severity, license, is_outdated, is_vulnerable, has_license_issue, description, raw_finding, created_at
+RETURNING id, scan_id, tool, finding_key, package_name, ecosystem, installed_version, fixed_version, latest_version, cve_id, cve_severity, license, is_outdated, is_vulnerable, has_license_issue, description, raw_finding, created_at, language
 `
 
 type UpsertScanDependencyResultParams struct {
 	ScanID           uuid.UUID       `json:"scan_id"`
 	Tool             string          `json:"tool"`
 	FindingKey       string          `json:"finding_key"`
+	Language         string          `json:"language"`
 	PackageName      string          `json:"package_name"`
 	Ecosystem        pgtype.Text     `json:"ecosystem"`
 	InstalledVersion pgtype.Text     `json:"installed_version"`
@@ -1076,6 +1206,7 @@ func (q *Queries) UpsertScanDependencyResult(ctx context.Context, arg UpsertScan
 		arg.ScanID,
 		arg.Tool,
 		arg.FindingKey,
+		arg.Language,
 		arg.PackageName,
 		arg.Ecosystem,
 		arg.InstalledVersion,
@@ -1110,6 +1241,7 @@ func (q *Queries) UpsertScanDependencyResult(ctx context.Context, arg UpsertScan
 		&i.Description,
 		&i.RawFinding,
 		&i.CreatedAt,
+		&i.Language,
 	)
 	return i, err
 }
@@ -1117,6 +1249,7 @@ func (q *Queries) UpsertScanDependencyResult(ctx context.Context, arg UpsertScan
 const upsertScanSonarResult = `-- name: UpsertScanSonarResult :one
 INSERT INTO scan_sonar_results (
     scan_id,
+    analysis_id,
     quality_gate,
     bugs,
     vulnerabilities,
@@ -1126,8 +1259,9 @@ INSERT INTO scan_sonar_results (
     security_hotspots,
     raw_response
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 ON CONFLICT (scan_id) DO UPDATE SET
+    analysis_id = EXCLUDED.analysis_id,
     quality_gate = EXCLUDED.quality_gate,
     bugs = EXCLUDED.bugs,
     vulnerabilities = EXCLUDED.vulnerabilities,
@@ -1136,11 +1270,12 @@ ON CONFLICT (scan_id) DO UPDATE SET
     duplications = EXCLUDED.duplications,
     security_hotspots = EXCLUDED.security_hotspots,
     raw_response = EXCLUDED.raw_response
-RETURNING id, scan_id, quality_gate, bugs, vulnerabilities, code_smells, coverage, duplications, security_hotspots, raw_response, created_at
+RETURNING id, scan_id, quality_gate, bugs, vulnerabilities, code_smells, coverage, duplications, security_hotspots, raw_response, created_at, analysis_id
 `
 
 type UpsertScanSonarResultParams struct {
 	ScanID           uuid.UUID       `json:"scan_id"`
+	AnalysisID       pgtype.Text     `json:"analysis_id"`
 	QualityGate      string          `json:"quality_gate"`
 	Bugs             int32           `json:"bugs"`
 	Vulnerabilities  int32           `json:"vulnerabilities"`
@@ -1154,6 +1289,7 @@ type UpsertScanSonarResultParams struct {
 func (q *Queries) UpsertScanSonarResult(ctx context.Context, arg UpsertScanSonarResultParams) (ScanSonarResult, error) {
 	row := q.db.QueryRow(ctx, upsertScanSonarResult,
 		arg.ScanID,
+		arg.AnalysisID,
 		arg.QualityGate,
 		arg.Bugs,
 		arg.Vulnerabilities,
@@ -1176,6 +1312,7 @@ func (q *Queries) UpsertScanSonarResult(ctx context.Context, arg UpsertScanSonar
 		&i.SecurityHotspots,
 		&i.RawResponse,
 		&i.CreatedAt,
+		&i.AnalysisID,
 	)
 	return i, err
 }

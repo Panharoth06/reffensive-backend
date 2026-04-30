@@ -14,27 +14,26 @@ import (
 )
 
 type Scan struct {
-	ID            string
-	ProjectKey    string
-	RepositoryURL string
-	SourceDir     string
-	Branch        string
-	UserID        uuid.UUID
-	Status        string
-	Progress      int32
-	ErrorMessage  string
-	StartedAt     time.Time
-	FinishedAt    time.Time
-	CreatedAt     time.Time
+	ID              string
+	ProjectKey      string
+	SonarProjectKey string
+	RepositoryURL   string
+	SourceDir       string
+	Branch          string
+	UserID          uuid.UUID
+	Status          string
+	Progress        int32
+	ErrorMessage    string
+	StartedAt       time.Time
+	FinishedAt      time.Time
+	CreatedAt       time.Time
 
-	CloneStatus     string
-	CloneError      string
-	SonarqubeStatus string
-	SonarqubeError  string
-	OwaspStatus     string
-	OwaspError      string
-	TrivyStatus     string
-	TrivyError      string
+	CloneStatus      string
+	CloneError       string
+	SonarqubeStatus  string
+	SonarqubeError   string
+	DependencyStatus string
+	DependencyError  string
 
 	raw db.Scan
 }
@@ -86,6 +85,18 @@ func (r *ScanRepository) UpdateStatus(ctx context.Context, id, status, errorMsg 
 	return err
 }
 
+func (r *ScanRepository) UpdateSonarProjectKey(ctx context.Context, id, projectKey string) error {
+	scanID, err := uuid.Parse(id)
+	if err != nil {
+		return err
+	}
+	_, err = r.queries.UpdateUnifiedScanSonarProjectKey(ctx, db.UpdateUnifiedScanSonarProjectKeyParams{
+		ID:              scanID,
+		SonarProjectKey: textValue(projectKey),
+	})
+	return err
+}
+
 func (r *ScanRepository) UpdatePhase(ctx context.Context, id, phase, status, errorMsg string) error {
 	scanID, err := uuid.Parse(id)
 	if err != nil {
@@ -100,13 +111,9 @@ func (r *ScanRepository) UpdatePhase(ctx context.Context, id, phase, status, err
 		_, err = r.queries.UpdateUnifiedScanSonarqubePhase(ctx, db.UpdateUnifiedScanSonarqubePhaseParams{
 			ID: scanID, SonarqubeStatus: status, SonarqubeError: textValue(errorMsg),
 		})
-	case "owasp":
+	case "dependency":
 		_, err = r.queries.UpdateUnifiedScanOwaspPhase(ctx, db.UpdateUnifiedScanOwaspPhaseParams{
 			ID: scanID, OwaspStatus: status, OwaspError: textValue(errorMsg),
-		})
-	case "trivy":
-		_, err = r.queries.UpdateUnifiedScanTrivyPhase(ctx, db.UpdateUnifiedScanTrivyPhaseParams{
-			ID: scanID, TrivyStatus: status, TrivyError: textValue(errorMsg),
 		})
 	default:
 		err = errors.New("unknown scan phase")
@@ -215,24 +222,23 @@ func (r *ScanRepository) RawByUUID(ctx context.Context, id uuid.UUID) (db.Scan, 
 
 func scanFromDB(scan db.Scan) *Scan {
 	result := &Scan{
-		ID:              scan.ID.String(),
-		ProjectKey:      scan.ProjectKey,
-		RepositoryURL:   text(scan.RepositoryUrl),
-		SourceDir:       scan.SourceDir,
-		Branch:          text(scan.Branch),
-		UserID:          scan.UserID,
-		Status:          scan.Status,
-		Progress:        scan.Progress,
-		ErrorMessage:    text(scan.ErrorMessage),
-		CloneStatus:     scan.CloneStatus,
-		CloneError:      text(scan.CloneError),
-		SonarqubeStatus: scan.SonarqubeStatus,
-		SonarqubeError:  text(scan.SonarqubeError),
-		OwaspStatus:     scan.OwaspStatus,
-		OwaspError:      text(scan.OwaspError),
-		TrivyStatus:     scan.TrivyStatus,
-		TrivyError:      text(scan.TrivyError),
-		raw:             scan,
+		ID:               scan.ID.String(),
+		ProjectKey:       scan.ProjectKey,
+		SonarProjectKey:  text(scan.SonarProjectKey),
+		RepositoryURL:    text(scan.RepositoryUrl),
+		SourceDir:        scan.SourceDir,
+		Branch:           text(scan.Branch),
+		UserID:           scan.UserID,
+		Status:           scan.Status,
+		Progress:         scan.Progress,
+		ErrorMessage:     text(scan.ErrorMessage),
+		CloneStatus:      scan.CloneStatus,
+		CloneError:       text(scan.CloneError),
+		SonarqubeStatus:  scan.SonarqubeStatus,
+		SonarqubeError:   text(scan.SonarqubeError),
+		DependencyStatus: scan.OwaspStatus,
+		DependencyError:  text(scan.OwaspError),
+		raw:              scan,
 	}
 	if scan.StartedAt.Valid {
 		result.StartedAt = scan.StartedAt.Time

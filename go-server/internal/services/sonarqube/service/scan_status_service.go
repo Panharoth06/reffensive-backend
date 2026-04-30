@@ -143,8 +143,7 @@ func scanStatusResponse(scan db.Scan) *pb.ScanStatusResponse {
 		Phases: []*pb.ScanPhase{
 			phase("clone", scan.CloneStatus, scan.CloneError),
 			phase("sonarqube", scan.SonarqubeStatus, scan.SonarqubeError),
-			phase("owasp", scan.OwaspStatus, scan.OwaspError),
-			phase("trivy", scan.TrivyStatus, scan.TrivyError),
+			phase("dependency", scan.OwaspStatus, scan.OwaspError),
 		},
 	}
 }

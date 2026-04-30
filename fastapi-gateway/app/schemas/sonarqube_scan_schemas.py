@@ -56,9 +56,12 @@ class ScanLogsResponse(BaseModel):
     next_sequence_num: int
 
 
-class EcosystemSummaryResponse(BaseModel):
-    ecosystem: str
-    total: int
+class LanguageSummaryResponse(BaseModel):
+    language: str
+    total_dependencies: int = 0
+    vulnerable_dependencies: int = 0
+    outdated_dependencies: int = 0
+    license_issues: int = 0
 
 
 class DependencySummaryResponse(BaseModel):
@@ -71,7 +74,7 @@ class DependencySummaryResponse(BaseModel):
     high: int = 0
     medium: int = 0
     low: int = 0
-    by_ecosystem: list[EcosystemSummaryResponse] = []
+    by_language: list[LanguageSummaryResponse] = []
 
 
 class ScanSummaryResponse(BaseModel):
@@ -189,6 +192,7 @@ class DependencyResponse(BaseModel):
     has_license_issue: bool = False
     description: str = ""
     tool: str = ""
+    language: str = ""
 
 
 class ListDependenciesResponse(BaseModel):

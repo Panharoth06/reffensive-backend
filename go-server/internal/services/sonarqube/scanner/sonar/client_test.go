@@ -165,9 +165,12 @@ func TestFetchAndSaveSummaryUpsertsMetrics(t *testing.T) {
 		t.Fatalf("NewClientWithConfig() error = %v", err)
 	}
 
-	err = client.FetchAndSaveSummary(context.Background(), "11111111-1111-1111-1111-111111111111", "project-1")
+	err = client.FetchAndSaveSummary(context.Background(), "11111111-1111-1111-1111-111111111111", "project-1", "analysis-1")
 	if err != nil {
 		t.Fatalf("FetchAndSaveSummary() error = %v", err)
+	}
+	if store.params.AnalysisID.String != "analysis-1" {
+		t.Fatalf("AnalysisID = %q, want analysis-1", store.params.AnalysisID.String)
 	}
 	if store.params.QualityGate != "ERROR" ||
 		store.params.Bugs != 1 ||
@@ -180,6 +183,61 @@ func TestFetchAndSaveSummaryUpsertsMetrics(t *testing.T) {
 	}
 	if len(store.params.RawResponse) == 0 {
 		t.Fatal("RawResponse is empty")
+	}
+}
+
+func TestWaitForCETaskReturnsAnalysisID(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/ce/component" {
+			t.Fatalf("path = %q, want /api/ce/component", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"current":{"status":"SUCCESS","analysisId":"analysis-123"}}`))
+	}))
+	defer server.Close()
+
+	client, err := NewClientWithConfig(ClientConfig{BaseURL: server.URL, Token: "token-1"})
+	if err != nil {
+		t.Fatalf("NewClientWithConfig() error = %v", err)
+	}
+
+	analysisID, err := client.WaitForCETask(context.Background(), "project-1")
+	if err != nil {
+		t.Fatalf("WaitForCETask() error = %v", err)
+	}
+	if analysisID != "analysis-123" {
+		t.Fatalf("analysisID = %q, want analysis-123", analysisID)
+	}
+}
+
+func TestDeleteProjectPostsToSonar(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("method = %q, want POST", r.Method)
+		}
+		if r.URL.Path != "/api/projects/delete" {
+			t.Fatalf("path = %q, want /api/projects/delete", r.URL.Path)
+		}
+		if r.URL.Query().Get("project") != "project-1" {
+			t.Fatalf("project = %q, want project-1", r.URL.Query().Get("project"))
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	client, err := NewClientWithConfig(ClientConfig{BaseURL: server.URL, Token: "token-1"})
+	if err != nil {
+		t.Fatalf("NewClientWithConfig() error = %v", err)
+	}
+
+	if err := client.DeleteProject(context.Background(), "project-1"); err != nil {
+		t.Fatalf("DeleteProject() error = %v", err)
+	}
+}
+
+func TestGenerateSonarProjectKey(t *testing.T) {
+	got := GenerateSonarProjectKey("org_repo", "a1b2c3d4-1111-2222-3333-444444444444")
+	if got != "org_repo-a1b2c3d4" {
+		t.Fatalf("GenerateSonarProjectKey() = %q, want org_repo-a1b2c3d4", got)
 	}
 }
 

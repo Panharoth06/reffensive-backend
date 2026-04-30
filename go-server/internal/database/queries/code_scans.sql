@@ -32,6 +32,7 @@ RETURNING *;
 -- name: UpsertScanSonarResult :one
 INSERT INTO scan_sonar_results (
     scan_id,
+    analysis_id,
     quality_gate,
     bugs,
     vulnerabilities,
@@ -41,8 +42,9 @@ INSERT INTO scan_sonar_results (
     security_hotspots,
     raw_response
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 ON CONFLICT (scan_id) DO UPDATE SET
+    analysis_id = EXCLUDED.analysis_id,
     quality_gate = EXCLUDED.quality_gate,
     bugs = EXCLUDED.bugs,
     vulnerabilities = EXCLUDED.vulnerabilities,
@@ -68,6 +70,13 @@ INSERT INTO scans (
     progress
 )
 VALUES ($1, $2, $3, $4, $5, 'PENDING', 0)
+RETURNING *;
+
+-- name: UpdateUnifiedScanSonarProjectKey :one
+UPDATE scans
+SET sonar_project_key = $2,
+    updated_at = now()
+WHERE id = $1
 RETURNING *;
 
 -- name: GetUnifiedScan :one
@@ -163,6 +172,7 @@ INSERT INTO scan_dependency_results (
     scan_id,
     tool,
     finding_key,
+    language,
     package_name,
     ecosystem,
     installed_version,
@@ -177,9 +187,10 @@ INSERT INTO scan_dependency_results (
     description,
     raw_finding
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 ON CONFLICT (scan_id, finding_key) DO UPDATE SET
     tool = EXCLUDED.tool,
+    language = EXCLUDED.language,
     package_name = EXCLUDED.package_name,
     ecosystem = EXCLUDED.ecosystem,
     installed_version = EXCLUDED.installed_version,
@@ -201,10 +212,11 @@ WHERE scan_id = $1
   AND ($2::text = '' OR tool = $2)
   AND ($3::text = '' OR cve_severity = $3)
   AND ($4::text[] IS NULL OR cardinality($4::text[]) = 0 OR ecosystem = ANY($4::text[]))
-  AND (NOT $5::boolean OR is_outdated)
-  AND (NOT $6::boolean OR is_vulnerable)
+  AND ($5::text[] IS NULL OR cardinality($5::text[]) = 0 OR language = ANY($5::text[]))
+  AND (NOT $6::boolean OR is_outdated)
+  AND (NOT $7::boolean OR is_vulnerable)
 ORDER BY created_at DESC
-LIMIT $7 OFFSET $8;
+LIMIT $8 OFFSET $9;
 
 -- name: CountScanDependencyResults :one
 SELECT COUNT(*) FROM scan_dependency_results
@@ -212,8 +224,9 @@ WHERE scan_id = $1
   AND ($2::text = '' OR tool = $2)
   AND ($3::text = '' OR cve_severity = $3)
   AND ($4::text[] IS NULL OR cardinality($4::text[]) = 0 OR ecosystem = ANY($4::text[]))
-  AND (NOT $5::boolean OR is_outdated)
-  AND (NOT $6::boolean OR is_vulnerable);
+  AND ($5::text[] IS NULL OR cardinality($5::text[]) = 0 OR language = ANY($5::text[]))
+  AND (NOT $6::boolean OR is_outdated)
+  AND (NOT $7::boolean OR is_vulnerable);
 
 -- name: GetScanDependencySummary :one
 SELECT
@@ -234,3 +247,19 @@ FROM scan_dependency_results
 WHERE scan_id = $1
 GROUP BY COALESCE(ecosystem, 'OTHER')
 ORDER BY total DESC, ecosystem ASC;
+
+-- name: GetScanDependencySummaryByLanguage :many
+SELECT
+    language,
+    COUNT(*)::int AS total,
+    COUNT(*) FILTER (WHERE is_vulnerable)::int AS vulnerable,
+    COUNT(*) FILTER (WHERE is_outdated)::int AS outdated,
+    COUNT(*) FILTER (WHERE has_license_issue)::int AS license_issues,
+    COUNT(*) FILTER (WHERE cve_severity = 'CRITICAL')::int AS critical,
+    COUNT(*) FILTER (WHERE cve_severity = 'HIGH')::int AS high,
+    COUNT(*) FILTER (WHERE cve_severity = 'MEDIUM')::int AS medium,
+    COUNT(*) FILTER (WHERE cve_severity = 'LOW')::int AS low
+FROM scan_dependency_results
+WHERE scan_id = $1
+GROUP BY language
+ORDER BY language ASC;
