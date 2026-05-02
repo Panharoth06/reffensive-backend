@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package target;
+
+option go_package = "go-server/gen/target;target";
+
+import "google/protobuf/timestamp.proto";
+
+service TargetService {
+  rpc CreateTarget(CreateTargetRequest) returns (TargetResponse);
+  rpc GetTarget(GetTargetRequest) returns (TargetResponse);
+  rpc ListTargets(ListTargetsRequest) returns (ListTargetsResponse);
+  rpc UpdateTarget(UpdateTargetRequest) returns (TargetResponse);
+  rpc DeleteTarget(DeleteTargetRequest) returns (DeleteTargetResponse);
+}
+
+message CreateTargetRequest {
+  string project_id  = 1;
+  string name        = 2;
+  string type        = 3;
+  string description = 4;
+}
+
+message GetTargetRequest {
+  string target_id  = 1;
+  string project_id = 2;
+}
+
+message ListTargetsRequest {
+  string project_id = 1;
+}
+
+message ListTargetsResponse {
+  repeated TargetResponse targets = 1;
+}
+
+message UpdateTargetRequest {
+  string           target_id   = 1;
+  string           project_id  = 2;
+  optional string  description = 3;
+}
+
+message DeleteTargetRequest {
+  string target_id  = 1;
+  string project_id = 2;
+}
+
+message DeleteTargetResponse {
+  bool   success   = 1;
+  string target_id = 2;
+}
+
+message TargetResponse {
+  string                    target_id   = 1;
+  string                    project_id  = 2;
+  string                    name        = 3;
+  string                    type        = 4;
+  string                    description = 5;
+  google.protobuf.Timestamp created_at  = 6;
+}

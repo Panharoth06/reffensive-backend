@@ -1,0 +1,153 @@
+{
+  "category_name": "Vulnerability Scanning",
+  "tool_name": "gitleaks",
+  "tool_description": "Detect secrets in source code and git history",
+  "tool_long_description": "Custom-built gitleaks image for registry onboarding tests.",
+  "examples": [
+    {
+      "target": "/workspace"
+    }
+  ],
+  "input_schema": {
+    "type": "object",
+    "fields": [
+      {
+        "key": "target",
+        "type": "string",
+        "required": true,
+        "description": "Directory to scan"
+      }
+    ]
+  },
+  "output_schema": {
+    "type": "array",
+    "pipeline_output": {
+      "mode": "json_array",
+      "extract_field": "File",
+      "entity": "secret",
+      "dedupe": true
+    },
+    "fields": [
+      {
+        "key": "RuleID",
+        "type": "string",
+        "label": "Rule",
+        "description": "Detection rule identifier",
+        "finding_title": true
+      },
+      {
+        "key": "Secret",
+        "type": "string",
+        "label": "Secret",
+        "description": "The detected secret value"
+      },
+      {
+        "key": "File",
+        "type": "string",
+        "label": "File",
+        "finding_host": true
+      },
+      {
+        "key": "Line",
+        "type": "string",
+        "label": "Line",
+        "description": "Line containing the secret"
+      },
+      {
+        "key": "Commit",
+        "type": "string",
+        "label": "Commit"
+      },
+      {
+        "key": "Entropy",
+        "type": "number",
+        "label": "Entropy"
+      },
+      {
+        "key": "Author",
+        "type": "string",
+        "label": "Author"
+      },
+      {
+        "key": "Email",
+        "type": "string",
+        "label": "Email"
+      },
+      {
+        "key": "Date",
+        "type": "string",
+        "label": "Date"
+      },
+      {
+        "key": "Message",
+        "type": "string",
+        "label": "Message",
+        "finding_description": true
+      },
+      {
+        "key": "Tags",
+        "type": "array",
+        "label": "Tags"
+      }
+    ]
+  },
+  "scan_config": {
+    "basic": {
+      "presets": []
+    },
+    "medium": {
+      "options": []
+    },
+    "advanced": {
+      "options": []
+    }
+  },
+  "install_method": "custom_build",
+  "version": "8.30.0",
+  "image_source": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.0/gitleaks_8.30.0_linux_x64.tar.gz",
+  "build_config": {
+    "build_strategy": "download_archive",
+    "version": "8.30.0",
+    "repository": "docker.io/autooffensive/tools",
+    "binary_name": "gitleaks",
+    "runtime_base_image": "cgr.dev/chainguard/static:latest"
+  },
+  "is_active": true,
+  "denied_options": ["--report-path", "-o", "--output", "--report-format"],
+  "shadow_output_config": {
+    "preferred_format": "json",
+    "formats": {
+      "json": {
+        "transport": "stdout",
+        "enable_flags": ["--report-format", "json", "-o", "/dev/stdout"],
+        "parser": "json_array",
+        "path_mode": "streaming"
+      }
+    },
+    "default_path": "/tmp/shadow/gitleaks",
+    "filename_template": "{job_id}_{step_id}_{tool_name}_{timestamp}",
+    "parse_timeout_seconds": 30,
+    "fallback_to_stdout": true,
+    "is_streaming": false
+  },
+  "parser_config": {
+    "type": "json_array",
+    "field_mappings": {
+      "title": ["RuleID"],
+      "host": ["File"],
+      "description": ["Message"],
+      "metadata": [
+        "Entropy",
+        "Author",
+        "Email",
+        "Date",
+        "Commit",
+        "Tags",
+        "Secret",
+        "Line"
+      ]
+    },
+    "default_severity": "SEVERITY_HIGH",
+    "fingerprint_fields": ["RuleID", "File", "Line"]
+  }
+}

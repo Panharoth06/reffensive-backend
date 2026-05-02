@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package apikey;
+
+option go_package = "go-server/gen/apikey;apikey";
+
+import "google/protobuf/timestamp.proto";
+
+service APIKeyService {
+  rpc CreateAPIKey (CreateAPIKeyRequest) returns (CreateAPIKeyResponse);
+  rpc ValidateAPIKey (ValidateAPIKeyRequest) returns (ValidateAPIKeyResponse);
+  rpc RevokeAPIKey (RevokeAPIKeyRequest) returns (RevokeAPIKeyResponse);
+  rpc ListProjectAPIKeys (ListProjectAPIKeysRequest) returns (ListProjectAPIKeysResponse);
+  rpc GetAPIKey (GetAPIKeyRequest) returns (APIKeyResponse);
+}
+
+// ─── Request/Response Messages ─────────────────────────────────────
+
+message CreateAPIKeyRequest {
+  string project_id = 1;
+  string name = 2;
+  string description = 3;
+  string scopes_json = 4;  // JSON string with scopes, e.g., "[\"scan:create\", \"scan:read\"]"
+}
+
+message CreateAPIKeyResponse {
+  string key_id = 1;
+  string plain_key = 2;    // Only shown ONCE during creation (prefix + secret)
+  string prefix = 3;
+  string name = 4;
+  string description = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message ValidateAPIKeyRequest {
+  string key = 1;           // The API key provided by CI/CD
+  string action = 2;        // The action being requested (e.g., "scan:create")
+}
+
+message ValidateAPIKeyResponse {
+  bool valid = 1;
+  string project_id = 2;
+  string user_id = 3;
+  string scopes_json = 4;   // JSON string with allowed scopes
+  string reason = 5;        // If invalid, why?
+  string key_id = 6;
+}
+
+message RevokeAPIKeyRequest {
+  string key_id = 1;
+}
+
+message RevokeAPIKeyResponse {
+  string key_id = 1;
+  bool success = 2;
+}
+
+message ListProjectAPIKeysRequest {
+  string project_id = 1;
+  bool active_only = 2;     // If true, only return active keys
+}
+
+message ListProjectAPIKeysResponse {
+  repeated APIKeyResponse keys = 1;
+}
+
+message GetAPIKeyRequest {
+  string key_id = 1;
+}
+
+// ─── Core API Key Message ──────────────────────────────────────────
+
+message APIKeyResponse {
+  string key_id = 1;
+  string project_id = 2;
+  string user_id = 3;
+  string name = 4;
+  string prefix = 5;
+  string description = 6;
+  string scopes_json = 7;   // JSON string with scopes
+  bool is_active = 8;
+  google.protobuf.Timestamp revoked_at = 9;
+  google.protobuf.Timestamp expired_at = 10;
+}

@@ -1,0 +1,173 @@
+syntax = "proto3";
+
+package basic;
+
+option go_package = "go-server/gen/basic;basic";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+service BasicScanService {
+  rpc SubmitScan(SubmitScanRequest) returns (SubmitScanResponse);
+  rpc GetStepStatus(GetStepStatusRequest) returns (GetStepStatusResponse);
+  rpc GetJobStatus(GetJobStatusRequest) returns (GetJobStatusResponse);
+  rpc GetResults(GetResultsRequest) returns (GetResultsResponse);
+  rpc HealthCheck(google.protobuf.Empty) returns (HealthCheckResponse);
+}
+
+message SubmitScanRequest {
+  string project_id = 1;
+  string target = 2;
+  string target_id = 3;
+  string tool_name = 4;
+  map<string, string> tool_args = 5;
+  repeated string custom_flags = 6;
+  string idempotency_key = 7;
+}
+
+message SubmitScanResponse {
+  string job_id = 1;
+  string step_id = 2;
+  StepStatus status = 3;
+  bool is_idempotent_replay = 4;
+  string original_request_id = 5;
+  google.protobuf.Timestamp queued_at = 6;
+}
+
+message GetStepStatusRequest {
+  string step_id = 1;
+}
+
+message GetStepStatusResponse {
+  string step_id = 1;
+  string job_id = 2;
+  string tool_name = 3;
+  StepStatus status = 4;
+  int64 exit_code = 5;
+  string error_message = 6;
+  google.protobuf.Timestamp queued_at = 7;
+  google.protobuf.Timestamp started_at = 8;
+  google.protobuf.Timestamp finished_at = 9;
+  int64 duration_ms = 10;
+  int32 findings_count = 11;
+  string raw_output_location = 12;
+  bool has_parsed_results = 13;
+}
+
+message GetJobStatusRequest {
+  string job_id = 1;
+}
+
+message StepSummary {
+  string step_id = 1;
+  string tool_name = 2;
+  int32 step_order = 3;
+  StepStatus status = 4;
+  int32 findings_count = 5;
+  google.protobuf.Timestamp started_at = 6;
+  google.protobuf.Timestamp finished_at = 7;
+}
+
+message GetJobStatusResponse {
+  string job_id = 1;
+  string project_id = 2;
+  JobStatus status = 3;
+  int32 total_steps = 4;
+  int32 completed_steps = 5;
+  int32 failed_steps = 6;
+  int32 pending_steps = 7;
+  int32 total_findings = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp started_at = 10;
+  google.protobuf.Timestamp finished_at = 11;
+  repeated StepSummary steps = 12;
+}
+
+message GetResultsRequest {
+  oneof scope {
+    string step_id = 1;
+    string job_id = 2;
+  }
+  Pagination pagination = 3;
+}
+
+message Pagination {
+  int32 limit = 1;
+  int32 offset = 2;
+  string next_cursor = 3;
+  bool has_more = 4;
+}
+
+message Finding {
+  string finding_id = 1;
+  string step_id = 2;
+  string job_id = 3;
+  string title = 4;
+  Severity severity = 5;
+  string fingerprint = 6;
+  string host = 7;
+  int32 port = 8;
+  string protocol = 9;
+  string url = 10;
+  string description = 11;
+  string remediation = 12;
+  repeated string references = 13;
+  map<string, string> metadata = 14;
+  map<string, string> tags = 15;
+  google.protobuf.Timestamp created_at = 16;
+}
+
+message GetResultsResponse {
+  string scope_id = 1;
+  repeated Finding findings = 2;
+  Pagination pagination = 3;
+  int32 total_count = 4;
+  oneof raw_output {
+    bytes raw_output_inline = 5;
+    string raw_output_s3_url = 6;
+  }
+}
+
+message HealthCheckResponse {
+  HealthStatus status = 1;
+  int64 uptime_seconds = 2;
+  int32 active_scans = 3;
+  int32 queued_scans = 4;
+}
+
+enum StepStatus {
+  STEP_STATUS_UNSPECIFIED = 0;
+  STEP_STATUS_PENDING = 1;
+  STEP_STATUS_QUEUED = 2;
+  STEP_STATUS_RUNNING = 3;
+  STEP_STATUS_COMPLETED = 4;
+  STEP_STATUS_FAILED = 5;
+  STEP_STATUS_CANCELLED = 6;
+  STEP_STATUS_SKIPPED = 7;
+}
+
+enum JobStatus {
+  JOB_STATUS_UNSPECIFIED = 0;
+  JOB_STATUS_PENDING = 1;
+  JOB_STATUS_RUNNING = 2;
+  JOB_STATUS_COMPLETED = 3;
+  JOB_STATUS_FAILED = 4;
+  JOB_STATUS_CANCELLED = 5;
+  JOB_STATUS_PARTIAL = 6;
+}
+
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_INFO = 1;
+  SEVERITY_LOW = 2;
+  SEVERITY_MEDIUM = 3;
+  SEVERITY_HIGH = 4;
+  SEVERITY_CRITICAL = 5;
+}
+
+enum HealthStatus {
+  HEALTH_STATUS_UNSPECIFIED = 0;
+  HEALTH_STATUS_HEALTHY = 1;
+  HEALTH_STATUS_DEGRADED = 2;
+  HEALTH_STATUS_UNHEALTHY = 3;
+}

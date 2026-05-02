@@ -1,0 +1,414 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "go-server/gen/user;user";
+
+service UserService {
+    rpc CheckUserExists (CheckUserExistsRequest) returns (CheckUserExistsResponse);
+    rpc CreateUser (CreateUserRequest) returns (UserResponse);
+    rpc GetUser (GetUserRequest) returns (UserResponse);
+    rpc ListUsers (ListUsersRequest) returns (ListUsersResponse);
+    rpc UpdateUser (UpdateUserRequest) returns (UserResponse);
+    rpc DeleteUser (DeleteUserRequest) returns (DeleteUserResponse);
+    rpc UpsertProviderAccount (UpsertProviderAccountRequest) returns (ProviderAccountResponse);
+    rpc UpsertGithubProviderAccount (UpsertGithubProviderAccountRequest) returns (ProviderAccountResponse);
+    rpc ListProviderAccounts (ListProviderAccountsRequest) returns (ListProviderAccountsResponse);
+    rpc ListProviderAuthAccounts (ListProviderAuthAccountsRequest) returns (ListProviderAuthAccountsResponse);
+    rpc PersistCodeScanContext (PersistCodeScanContextRequest) returns (PersistCodeScanContextResponse);
+    rpc FinishCodeScanJob (FinishCodeScanJobRequest) returns (FinishCodeScanJobResponse);
+    rpc UpsertSonarProjectContext (UpsertSonarProjectContextRequest) returns (UpsertSonarProjectContextResponse);
+    rpc GetCachedSonarResult (GetCachedSonarResultRequest) returns (GetCachedSonarResultResponse);
+    rpc UpsertSonarScanStep (UpsertSonarScanStepRequest) returns (UpsertSonarScanStepResponse);
+    rpc PersistSonarFinalResult (PersistSonarFinalResultRequest) returns (PersistSonarFinalResultResponse);
+    rpc ListSonarScanHistories (ListSonarScanHistoriesRequest) returns (ListSonarScanHistoriesResponse);
+    rpc GetSonarScanHistoryDetail (GetSonarScanHistoryDetailRequest) returns (GetSonarScanHistoryDetailResponse);
+    rpc GetSonarQubeHealth (GetSonarQubeHealthRequest) returns (SonarGatewayJsonResponse);
+    rpc ProvisionSonarProjectGateway (ProvisionSonarProjectGatewayRequest) returns (SonarGatewayJsonResponse);
+    rpc GetSonarProjectSummaryGateway (GetSonarProjectSummaryGatewayRequest) returns (SonarGatewayJsonResponse);
+    rpc GetSonarIssueDetailGateway (GetSonarIssueDetailGatewayRequest) returns (SonarGatewayJsonResponse);
+    rpc StartSonarAnalysisGateway (StartSonarAnalysisGatewayRequest) returns (SonarGatewayJsonResponse);
+    rpc ListSonarAnalysesGateway (ListSonarAnalysesGatewayRequest) returns (SonarGatewayJsonResponse);
+    rpc GetSonarAnalysisGateway (GetSonarAnalysisGatewayRequest) returns (SonarGatewayJsonResponse);
+}
+
+message CheckUserExistsRequest {
+    // Optional UUID from token claims, when available.
+    string user_id = 1;
+    // Optional email claim from token.
+    string email = 2;
+    // Optional username claim from token.
+    string username = 3;
+}
+
+message CheckUserExistsResponse {
+    bool exists = 1;
+    // The field used to resolve this user: user_id, email, or username.
+    string matched_by = 2;
+    // Internal database UUID for the resolved user.
+    string resolved_user_id = 3;
+}
+
+message User {
+    string user_id = 1;
+    string username = 2;
+    string email = 3;
+    string alias_name = 4;
+    string avatar_profile = 5;
+    string created_at = 6;
+    string last_modified = 7;
+}
+
+message CreateUserRequest {
+    // Keycloak user id from gateway.
+    string user_id = 1;
+    string username = 2;
+    string email = 3;
+    string alias_name = 4;
+    string avatar_profile = 5;
+}
+
+message GetUserRequest {
+    string user_id = 1;
+}
+
+message ListUsersRequest {}
+
+message ListUsersResponse {
+    repeated User users = 1;
+}
+
+message UpdateUserRequest {
+    string user_id = 1;
+    string username = 2;
+    string email = 3;
+    optional string alias_name = 4;
+    optional string avatar_profile = 5;
+}
+
+message DeleteUserRequest {
+    string user_id = 1;
+}
+
+message DeleteUserResponse {
+    bool deleted = 1;
+}
+
+message UserResponse {
+    User user = 1;
+}
+
+message ProviderAccount {
+    string id = 1;
+    string user_id = 2;
+    string provider_type = 3;
+    string provider_account_id = 4;
+    string provider_username = 5;
+    string provider_email = 6;
+    string status = 7;
+    string connected_at = 8;
+    string updated_at = 9;
+}
+
+message UpsertGithubProviderAccountRequest {
+    string user_id = 1;
+    string provider_account_id = 2;
+    string provider_username = 3;
+    string provider_email = 4;
+    string access_token = 5;
+    optional string refresh_token = 6;
+}
+
+message UpsertProviderAccountRequest {
+    string user_id = 1;
+    string provider_type = 2;
+    string provider_account_id = 3;
+    string provider_username = 4;
+    string provider_email = 5;
+    optional string access_token = 6;
+    optional string refresh_token = 7;
+}
+
+message ProviderAccountResponse {
+    ProviderAccount account = 1;
+}
+
+message ListProviderAccountsRequest {
+    string user_id = 1;
+}
+
+message ListProviderAccountsResponse {
+    repeated ProviderAccount accounts = 1;
+}
+
+message ListProviderAuthAccountsRequest {
+    string user_id = 1;
+    string provider_type = 2;
+}
+
+message ProviderAuthAccount {
+    string id = 1;
+    string user_id = 2;
+    string provider_type = 3;
+    string provider_account_id = 4;
+    string provider_username = 5;
+    string provider_email = 6;
+    string status = 7;
+    string access_token = 8;
+    optional string refresh_token = 9;
+}
+
+message ListProviderAuthAccountsResponse {
+    repeated ProviderAuthAccount accounts = 1;
+}
+
+message PersistCodeScanContextRequest {
+    string user_id = 1;
+    string provider_type = 2;
+    string provider_account_id = 3; // internal UUID of provider_accounts.id
+    string provider_repository_id = 4; // provider repo id (optional)
+    string repository_full_name = 5;
+    bool repository_is_private = 6;
+    string repository_default_branch = 7;
+    string branch_name = 8;
+    string commit_sha = 9;
+    string source_snapshot_hash = 10;
+    optional string dependency_hash = 11;
+    string scan_type = 12; // e.g. SONARQUBE
+    string scan_config_hash = 13;
+}
+
+message PersistCodeScanContextResponse {
+    string repository_id = 1;
+    string repository_snapshot_id = 2;
+    string code_scan_job_id = 3;
+    string code_scan_job_status = 4;
+    bool dedup_hit = 5;
+}
+
+message FinishCodeScanJobRequest {
+    string code_scan_job_id = 1;
+    string status = 2; // SUCCESS | FAILED | CANCELLED
+    optional string error_message = 3;
+}
+
+message FinishCodeScanJobResponse {
+    string code_scan_job_id = 1;
+    string status = 2;
+}
+
+message UpsertSonarProjectContextRequest {
+    string repository_id = 1;
+    string sonar_project_key = 2;
+    string sonar_project_name = 3;
+    string sonar_host_url = 4;
+    string main_branch = 5;
+    string repository_hash = 6;
+    optional string sonar_external_id = 7;
+    string status = 8; // ACTIVE | INACTIVE | ERROR
+}
+
+message UpsertSonarProjectContextResponse {
+    string sonar_project_id = 1;
+    string sonar_project_key = 2;
+    string repository_hash = 3;
+    string status = 4;
+}
+
+message GetCachedSonarResultRequest {
+    string repository_id = 1;
+    string repository_hash = 2;
+    string scan_config_hash = 3;
+}
+
+message GetCachedSonarResultResponse {
+    bool found = 1;
+    string sonar_project_id = 2;
+    string code_scan_job_id = 3;
+    string status = 4; // RUNNING | SUCCESS | FAILED | CANCELLED
+    string quality_gate_status = 5;
+    int32 bugs_count = 6;
+    int32 vulnerabilities_count = 7;
+    int32 code_smells_count = 8;
+    double coverage = 9;
+    double duplicated_lines_density = 10;
+    string quality_gate_payload_json = 11;
+    string measures_payload_json = 12;
+    string error_message = 13;
+}
+
+message UpsertSonarScanStepRequest {
+    string code_scan_job_id = 1;
+    optional string sonar_project_id = 2;
+    string step_key = 3;
+    int32 step_order = 4;
+    string status = 5; // pending | running | completed | failed | skipped
+    optional string message = 6;
+    optional string stdout_log = 7;
+    optional string stderr_log = 8;
+    optional string payload_json = 9;
+    optional string started_at = 10; // RFC3339
+    optional string finished_at = 11; // RFC3339
+}
+
+message UpsertSonarScanStepResponse {
+    string step_id = 1;
+}
+
+message PersistSonarFinalResultRequest {
+    string code_scan_job_id = 1;
+    string sonar_project_id = 2;
+    string analysis_key = 3;
+    optional string ce_task_id = 4;
+    string quality_gate_status = 5; // OK | WARN | ERROR | NONE
+    int32 bugs_count = 6;
+    int32 vulnerabilities_count = 7;
+    int32 code_smells_count = 8;
+    optional double coverage = 9;
+    optional double duplicated_lines_density = 10;
+    string quality_gate_payload_json = 11;
+    string measures_payload_json = 12;
+    string repository_hash = 13;
+    string scan_config_hash = 14;
+    string job_status = 15; // RUNNING | SUCCESS | FAILED | CANCELLED
+    optional string error_message = 16;
+    string analysis_hash = 17;
+}
+
+message PersistSonarFinalResultResponse {
+    string sonar_analysis_id = 1;
+    string sonar_result_id = 2;
+}
+
+message ListSonarScanHistoriesRequest {
+    string user_id = 1;
+    string repository_full_name = 2;
+    string project_key = 3;
+    string status = 4;
+    int32 limit = 5;
+}
+
+message SonarScanHistoryItem {
+    string code_scan_job_id = 1;
+    string repository_full_name = 2;
+    string branch = 3;
+    string commit_sha = 4;
+    string sonar_project_id = 5;
+    string project_key = 6;
+    string project_name = 7;
+    string analysis_key = 8;
+    string ce_task_id = 9;
+    string quality_gate_status = 10;
+    int32 bugs_count = 11;
+    int32 vulnerabilities_count = 12;
+    int32 code_smells_count = 13;
+    optional double coverage = 14;
+    optional double duplicated_lines_density = 15;
+    string quality_gate_payload_json = 16;
+    string measures_payload_json = 17;
+    string status = 18;
+    bool cache_hit = 19;
+    string error_message = 20;
+    string queued_at = 21;
+    string started_at = 22;
+    string finished_at = 23;
+}
+
+message ListSonarScanHistoriesResponse {
+    repeated SonarScanHistoryItem analyses = 1;
+}
+
+message GetSonarScanHistoryDetailRequest {
+    string user_id = 1;
+    string code_scan_job_id = 2;
+}
+
+message SonarScanHistoryStep {
+    string step_id = 1;
+    string step_key = 2;
+    int32 step_order = 3;
+    string status = 4;
+    string message = 5;
+    string stdout_log = 6;
+    string stderr_log = 7;
+    string payload_json = 8;
+    string started_at = 9;
+    string finished_at = 10;
+}
+
+message GetSonarScanHistoryDetailResponse {
+    string repository_id = 1;
+    string repository_snapshot_id = 2;
+    string sonar_project_id = 3;
+    string code_scan_job_id = 4;
+    string repository_full_name = 5;
+    string branch = 6;
+    string commit_sha = 7;
+    string source_snapshot_hash = 8;
+    string dependency_hash = 9;
+    string scan_config_hash = 10;
+    string project_key = 11;
+    string project_name = 12;
+    string analysis_key = 13;
+    string ce_task_id = 14;
+    string quality_gate_status = 15;
+    int32 bugs_count = 16;
+    int32 vulnerabilities_count = 17;
+    int32 code_smells_count = 18;
+    optional double coverage = 19;
+    optional double duplicated_lines_density = 20;
+    string quality_gate_payload_json = 21;
+    string measures_payload_json = 22;
+    string status = 23;
+    bool cache_hit = 24;
+    string error_message = 25;
+    string queued_at = 26;
+    string started_at = 27;
+    string finished_at = 28;
+    repeated SonarScanHistoryStep steps = 29;
+}
+
+message GetSonarQubeHealthRequest {}
+
+message ProvisionSonarProjectGatewayRequest {
+    optional string project_key = 1;
+    optional string project_name = 2;
+    optional string repository_full_name = 3;
+    optional string main_branch = 4;
+    optional string visibility = 5;
+}
+
+message GetSonarProjectSummaryGatewayRequest {
+    string project_key = 1;
+}
+
+message GetSonarIssueDetailGatewayRequest {
+    string issue_key = 1;
+}
+
+message StartSonarAnalysisGatewayRequest {
+    string user_id = 1;
+    string repository_url = 2;
+    optional string branch = 3;
+    optional string project_key = 4;
+    optional string project_name = 5;
+    bool scan_dependency = 6;
+}
+
+message ListSonarAnalysesGatewayRequest {
+    string user_id = 1;
+    optional string repository_full_name = 2;
+    optional string project_key = 3;
+    optional string status = 4;
+    int32 limit = 5;
+}
+
+message GetSonarAnalysisGatewayRequest {
+    string requester_user_id = 1;
+    string job_id = 2;
+    bool requester_is_admin = 3;
+}
+
+message SonarGatewayJsonResponse {
+    string json_payload = 1;
+}

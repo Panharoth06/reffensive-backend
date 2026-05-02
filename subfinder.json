@@ -1,0 +1,121 @@
+{
+  "category_name": "Reconnaissance",
+  "tool_name": "subfinder",
+  "tool_description": "Fast passive subdomain enumeration tool",
+  "tool_long_description": "Subfinder is a subdomain discovery tool that returns valid subdomains for websites, using passive online sources. It's designed for speed and efficiency, making it ideal for reconnaissance phases in security assessments.",
+  "examples": [
+    {
+      "domain": "example.com"
+    }
+  ],
+  "input_schema": {
+    "type": "object",
+    "pipeline_input": {
+      "multi_mode": "first",
+      "target_field": "domain"
+    },
+    "fields": [
+      {
+        "key": "domain",
+        "type": "string",
+        "required": true,
+        "flag": "-d",
+        "description": "Target domain to enumerate subdomains for"
+      }
+    ]
+  },
+  "output_schema": {
+    "type": "array",
+    "pipeline_output": {
+      "mode": "jsonl",
+      "extract_field": "host",
+      "entity": "host",
+      "dedupe": true
+    },
+    "fields": [
+      {
+        "key": "host",
+        "type": "string",
+        "label": "Subdomain",
+        "finding_host": true,
+        "pipeline_extract": true
+      },
+      {
+        "key": "input",
+        "type": "string",
+        "label": "Input Domain"
+      },
+      {
+        "key": "source",
+        "type": "array",
+        "label": "Sources"
+      }
+    ]
+  },
+  "scan_config": {
+    "basic": {
+      "presets": [
+        {
+          "name": "light",
+          "description": "Quick scan with minimal output",
+          "flags": ["-silent"]
+        },
+        {
+          "name": "deep",
+          "description": "More comprehensive scan using all sources",
+          "flags": ["-all"]
+        }
+      ]
+    },
+    "medium": {
+      "options": [
+        {
+          "flag": "-timeout",
+          "key": "timeout",
+          "type": "integer",
+          "description": "Timeout in seconds",
+          "required": false
+        },
+        {
+          "flag": "-t",
+          "key": "threads",
+          "type": "integer",
+          "description": "Number of concurrent threads",
+          "required": false
+        }
+      ]
+    },
+    "advanced": {
+      "options": []
+    }
+  },
+  "install_method": "docker",
+  "version": "latest",
+  "image_ref": "projectdiscovery/subfinder:latest",
+  "image_source": "dockerhub",
+  "is_active": true,
+  "denied_options": ["-dL", "-oD", "-cs"],
+  "shadow_output_config": {
+    "preferred_format": "jsonl",
+    "formats": {
+      "jsonl": {
+        "transport": "stdout",
+        "enable_flags": ["-silent", "-json"],
+        "parser": "jsonl",
+        "path_mode": "streaming"
+      }
+    },
+    "default_path": "/tmp/shadow/subfinder",
+    "filename_template": "{job_id}_{step_id}_{tool_name}_{timestamp}",
+    "parse_timeout_seconds": 30,
+    "fallback_to_stdout": true,
+    "is_streaming": true
+  },
+  "parser_config": {
+    "type": "jsonl",
+    "field_mappings": {
+      "host": ["host", "input"]
+    },
+    "fingerprint_fields": ["host"]
+  }
+}

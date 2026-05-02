@@ -1,0 +1,164 @@
+{
+  "category_name": "Reconnaissance",
+  "tool_name": "gobuster-dir",
+  "tool_description": "Directory and file brute-forcing with Gobuster dir mode",
+  "tool_long_description": "gobuster-dir is a Gobuster-based directory enumeration tool built from source and exposed through a fixed dir-mode wrapper command. It is intended for controlled content discovery against authorized web targets while preserving the platform's existing basic, medium, and advanced scan semantics.",
+  "examples": [
+    {
+      "target": "https://example.com",
+      "wordlist": "/wordlists/common.txt"
+    }
+  ],
+  "input_schema": {
+    "type": "object",
+    "pipeline_input": {
+      "multi_mode": "first",
+      "target_field": "target"
+    },
+    "fields": [
+      {
+        "key": "target",
+        "type": "string",
+        "required": true,
+        "flag": "-u",
+        "description": "Target base URL to enumerate"
+      }
+    ]
+  },
+  "output_schema": {
+    "type": "array",
+    "pipeline_output": {
+      "mode": "lines",
+      "extract_field": "_line",
+      "entity": "path",
+      "dedupe": false
+    },
+    "fields": [
+      {
+        "key": "_line",
+        "type": "string",
+        "label": "Discovered Path",
+        "description": "Raw discovered path or URL from gobuster output",
+        "finding_host": true
+      }
+    ]
+  },
+  "scan_config": {
+    "basic": {
+      "presets": []
+    },
+    "medium": {
+      "options": [
+        {
+          "flag": "-w",
+          "key": "wordlist",
+          "type": "string",
+          "description": "Wordlist file path inside the container",
+          "required": true
+        },
+        {
+          "flag": "-x",
+          "key": "extensions",
+          "type": "string",
+          "description": "Comma-separated extensions to append during enumeration",
+          "required": false
+        },
+        {
+          "flag": "-t",
+          "key": "threads",
+          "type": "integer",
+          "description": "Number of concurrent worker threads",
+          "required": false
+        },
+        {
+          "flag": "--timeout",
+          "key": "timeout",
+          "type": "string",
+          "description": "HTTP timeout duration such as 5s or 10s",
+          "required": false
+        },
+        {
+          "flag": "-k",
+          "key": "no_tls_validation",
+          "type": "boolean",
+          "description": "Skip TLS certificate validation",
+          "required": false
+        },
+        {
+          "flag": "-r",
+          "key": "follow_redirect",
+          "type": "boolean",
+          "description": "Follow redirects during requests",
+          "required": false
+        },
+        {
+          "flag": "-s",
+          "key": "status_codes",
+          "type": "string",
+          "description": "Whitelist status codes, for example 200,204,301,302,403",
+          "required": false
+        },
+        {
+          "flag": "-b",
+          "key": "status_codes_blacklist",
+          "type": "string",
+          "description": "Blacklist status codes, for example 404",
+          "required": false
+        },
+        {
+          "flag": "-a",
+          "key": "user_agent",
+          "type": "string",
+          "description": "Custom User-Agent header value",
+          "required": false
+        },
+        {
+          "flag": "-H",
+          "key": "headers",
+          "type": "array",
+          "description": "Additional request headers, for example ['Authorization: Bearer <token>']",
+          "required": false
+        },
+        {
+          "flag": "-e",
+          "key": "expanded",
+          "type": "boolean",
+          "description": "Print full URLs in output",
+          "required": false
+        }
+      ]
+    },
+    "advanced": {
+      "options": []
+    }
+  },
+  "install_method": "custom_build",
+  "version": "3.6.0",
+  "image_source": "https://github.com/OJ/gobuster.git",
+  "is_active": true,
+  "denied_options": ["-o", "--output", "--pattern", "--debug"],
+  "shadow_output_config": {
+    "preferred_format": "lines",
+    "formats": {
+      "lines": {
+        "transport": "stdout",
+        "enable_flags": ["-q"],
+        "parser": "lines",
+        "path_mode": "streaming"
+      }
+    },
+    "default_path": "/tmp/shadow/gobuster-dir",
+    "filename_template": "{job_id}_{step_id}_{tool_name}_{timestamp}",
+    "parse_timeout_seconds": 30,
+    "fallback_to_stdout": true,
+    "is_streaming": true
+  },
+  "parser_config": {
+    "type": "lines",
+    "field_mappings": {
+      "host": ["_line"]
+    },
+    "default_severity": "SEVERITY_INFO",
+    "fingerprint_fields": ["_line"]
+  }
+}

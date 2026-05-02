@@ -1,0 +1,150 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-qwer1234}
+      POSTGRES_DB: ${DB_NAME:-autooffensive}
+    ports:
+      - "5430:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-autooffensive}",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  sonarqube:
+    image: sonarqube:community
+    ports:
+      - "9000:9000"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_logs:/opt/sonarqube/logs
+      - sonarqube_extensions:/opt/sonarqube/extensions
+
+  go-server:
+    build:
+      context: .
+      dockerfile: go-server/Dockerfile
+    env_file:
+      - ./go-server/.env
+    environment:
+      DB_HOST: postgres # ← changed from localhost
+      DB_PORT: 5432 # ← internal port, not 5430
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-qwer1234}
+      DB_NAME: ${DB_NAME:-autooffensive}
+      REDIS_ADDR: redis:6379
+      SONARQUBE_HOST: http://sonarqube:9000
+      SHADOW_OUTPUT_ROOT: /tmp/shadow
+      SCAN_QUEUE_NAME: "scan:queue"
+      SCAN_PROCESSING_NAME: "scan:processing"
+      SCAN_MAX_CONCURRENT: "20"
+      SCAN_MAX_QUEUE_CAPACITY: "20"
+      # Trivy configuration
+      TRIVY_CACHE_DIR: /root/.cache/trivy
+      TRIVY_TIMEOUT: "600"
+      # OWASP Dependency-Check configuration
+      OWASP_TIMEOUT: "1800"
+      OWASP_DATA_DIRECTORY: /root/.m2/repository/org/owasp/dependency-check/data
+    ports:
+      - "50051:50051"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - trivy_cache:/root/.cache/trivy
+      - owasp_cache:/root/.m2/repository/org/owasp/dependency-check/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy # ← wait for DB to be ready
+      redis:
+        condition: service_healthy
+      sonarqube:
+        condition: service_started
+
+  sonarqube-worker:
+    build:
+      context: ./go-server
+      dockerfile: Dockerfile
+    entrypoint: ["/sonarqube-worker"]
+    env_file:
+      - ./go-server/.env
+    environment:
+      DB_HOST: postgres # ← changed from localhost
+      DB_PORT: 5432 # ← internal port, not 5430
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-qwer1234}
+      DB_NAME: ${DB_NAME:-autooffensive}
+      REDIS_ADDR: redis:6379
+      SONARQUBE_HOST: http://sonarqube:9000
+      SONAR_ENABLE_BRANCH_ANALYSIS: "false"
+      SONAR_SCANNER_OPTS: -Xmx2g
+      NODE_OPTIONS: --max-old-space-size=2048
+      SONAR_JS_NODE_MAXSPACE: "4096"
+      SHADOW_OUTPUT_ROOT: /tmp/shadow
+      SONARQUBE_WORKER_CONCURRENCY: "2"
+      # Trivy configuration
+      TRIVY_CACHE_DIR: /root/.cache/trivy
+      TRIVY_TIMEOUT: "600"
+      # OWASP Dependency-Check configuration
+      OWASP_TIMEOUT: "1800"
+      OWASP_DATA_DIRECTORY: /root/.m2/repository/org/owasp/dependency-check/data
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - trivy_cache:/root/.cache/trivy
+      - owasp_cache:/root/.m2/repository/org/owasp/dependency-check/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      sonarqube:
+        condition: service_started
+      go-server:
+        condition: service_started
+
+  fastapi-gateway:
+    build:
+      context: ./fastapi-gateway
+      dockerfile: Dockerfile
+    env_file:
+      - ./fastapi-gateway/.env
+    environment:
+      GRPC_SERVER_ADDR: go-server:50051
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      redis:
+        condition: service_healthy
+      go-server:
+        condition: service_started
+
+volumes:
+  postgres_data:
+  sonarqube_data:
+  sonarqube_logs:
+  sonarqube_extensions:
+  trivy_cache:
+  owasp_cache:

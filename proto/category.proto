@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package category;
+
+option go_package = "go-server/gen/category;category";
+
+import "google/protobuf/timestamp.proto";
+
+service CategoryService {
+    rpc CreateCategory (CreateCategoryRequest) returns (CategoryResponse);
+    rpc GetCategory    (GetCategoryRequest)    returns (CategoryResponse);
+    rpc ListCategories (ListCategoriesRequest) returns (ListCategoriesResponse);
+    rpc UpdateCategory (UpdateCategoryRequest) returns (CategoryResponse);
+    rpc DeleteCategory (DeleteCategoryRequest) returns (DeleteCategoryResponse);
+}
+
+message CategoryResponse {
+    string category_id = 1;
+    string name = 2;
+    string description = 3;
+    google.protobuf.Timestamp created_at = 4;
+    google.protobuf.Timestamp last_modified = 5;
+}
+
+message CreateCategoryRequest {
+    string name = 1;
+    string description = 2;
+}
+
+message GetCategoryRequest {
+    string category_id = 1;
+}
+
+message ListCategoriesRequest {}
+
+message ListCategoriesResponse {
+    repeated CategoryResponse categories = 1;
+}
+
+message UpdateCategoryRequest {
+    string category_id = 1;
+    string name = 2;
+    string description = 3;
+}
+
+message DeleteCategoryRequest {
+    string category_id = 1;
+}
+
+message DeleteCategoryResponse {
+    string category_id = 1;
+    bool deleted = 2;
+}

@@ -1,0 +1,292 @@
+{
+  "category_name": "Reconnaissance",
+  "tool_name": "httpx",
+  "tool_description": "Fast and multi-purpose HTTP toolkit and probe utility",
+  "tool_long_description": "httpx is a fast HTTP probing tool from ProjectDiscovery that discovers live web services and enriches targets with metadata such as status code, title, and technologies. It is commonly used after host discovery to validate reachable HTTP/HTTPS endpoints.",
+  "examples": [
+    {
+      "target": "example.com",
+      "path": "/login"
+    }
+  ],
+  "input_schema": {
+    "type": "object",
+    "pipeline_input": {
+      "multi_mode": "list_file",
+      "list_flag": "-list",
+      "target_field": "target"
+    },
+    "fields": [
+      {
+        "key": "target",
+        "type": "string",
+        "required": true,
+        "flag": "-u",
+        "description": "Target host, domain, or URL to probe"
+      }
+    ]
+  },
+  "output_schema": {
+    "type": "array",
+    "pipeline_output": {
+      "mode": "jsonl",
+      "extract_field": "url",
+      "entity": "url",
+      "dedupe": true
+    },
+    "fields": [
+      {
+        "key": "url",
+        "type": "string",
+        "label": "URL",
+        "description": "The target URL",
+        "finding_host": true,
+        "pipeline_extract": true
+      },
+      {
+        "key": "input",
+        "type": "string",
+        "label": "Input",
+        "description": "Original input value"
+      },
+      {
+        "key": "status_code",
+        "type": "integer",
+        "label": "Status",
+        "description": "HTTP response status code"
+      },
+      {
+        "key": "title",
+        "type": "string",
+        "label": "Page Title",
+        "description": "HTML page title",
+        "finding_title": true
+      },
+      {
+        "key": "tech",
+        "type": "array",
+        "label": "Technologies",
+        "description": "Detected web technologies"
+      },
+      {
+        "key": "a",
+        "type": "string",
+        "label": "IP Address",
+        "description": "IP address of the target"
+      },
+      {
+        "key": "content_type",
+        "type": "string",
+        "label": "Content Type",
+        "description": "Response Content-Type header"
+      },
+      {
+        "key": "content_length",
+        "type": "integer",
+        "label": "Size",
+        "description": "Response body size in bytes"
+      },
+      {
+        "key": "response_time",
+        "type": "string",
+        "label": "Response Time",
+        "description": "Response time (e.g. 238ms)"
+      }
+    ]
+  },
+  "scan_config": {
+    "basic": {
+      "presets": [
+        {
+          "name": "light",
+          "description": "Probe targets and output live URLs only",
+          "flags": ["-silent"]
+        },
+        {
+          "name": "deep",
+          "description": "Collect richer HTTP metadata",
+          "flags": ["-silent", "-sc", "-title", "-td"]
+        }
+      ]
+    },
+    "medium": {
+      "options": [
+        {
+          "flag": "-sc",
+          "key": "status_code",
+          "type": "boolean",
+          "description": "Get HTTP status code",
+          "required": false
+        },
+        {
+          "flag": "-title",
+          "key": "title",
+          "type": "boolean",
+          "description": "Get page title",
+          "required": false
+        },
+        {
+          "flag": "-cl",
+          "key": "content_length",
+          "type": "boolean",
+          "description": "Include Content-Length header in output",
+          "required": false
+        },
+        {
+          "flag": "-server",
+          "key": "server_header",
+          "type": "boolean",
+          "description": "Extract Server header value",
+          "required": false
+        },
+        {
+          "flag": "-rt",
+          "key": "response_time",
+          "type": "boolean",
+          "description": "Measure and include response time in milliseconds",
+          "required": false
+        },
+        {
+          "flag": "-fr",
+          "key": "follow_redirects",
+          "type": "boolean",
+          "description": "Follow HTTP redirects automatically",
+          "required": false
+        },
+        {
+          "flag": "-cdn",
+          "key": "cdn_check",
+          "type": "boolean",
+          "description": "Detect if target is behind a CDN",
+          "required": false
+        },
+        {
+          "flag": "-http2",
+          "key": "http2_probe",
+          "type": "boolean",
+          "description": "Probe for HTTP/2 protocol support",
+          "required": false
+        },
+        {
+          "flag": "-tls-grab",
+          "key": "tls_info",
+          "type": "boolean",
+          "description": "Extract TLS/SSL certificate information",
+          "required": false
+        },
+        {
+          "flag": "-td",
+          "key": "tech_detect",
+          "type": "boolean",
+          "description": "Detect web technologies used by the target",
+          "required": false
+        },
+        {
+          "flag": "-asn",
+          "key": "asn_info",
+          "type": "boolean",
+          "description": "Include ASN and ISP information in output",
+          "required": false
+        },
+        {
+          "flag": "-path",
+          "key": "path",
+          "type": "string",
+          "description": "Path to probe on each target (e.g. /login)",
+          "required": false
+        },
+        {
+          "flag": "-method",
+          "key": "http_method",
+          "type": "string",
+          "description": "HTTP method to use for requests (GET, POST, HEAD, etc.)",
+          "required": false
+        },
+        {
+          "flag": "-header",
+          "key": "custom_headers",
+          "type": "array",
+          "description": "Custom HTTP headers to include in requests (e.g. ['Authorization: Bearer xyz'])",
+          "required": false
+        },
+        {
+          "flag": "-ports",
+          "key": "ports",
+          "type": "string",
+          "description": "Comma-separated list of ports to probe (e.g., 80,443,8080)",
+          "required": false
+        },
+        {
+          "flag": "-timeout",
+          "key": "timeout",
+          "type": "integer",
+          "description": "Timeout in seconds for each request",
+          "required": false
+        },
+        {
+          "flag": "-retries",
+          "key": "retries",
+          "type": "integer",
+          "description": "Number of retries for failed requests",
+          "required": false
+        },
+        {
+          "flag": "-threads",
+          "key": "threads",
+          "type": "integer",
+          "description": "Number of concurrent worker threads",
+          "required": false
+        },
+        {
+          "flag": "-rl",
+          "key": "rate_limit",
+          "type": "integer",
+          "description": "Maximum requests per second",
+          "required": false
+        }
+      ]
+    },
+    "advanced": {
+      "options": []
+    }
+  },
+  "install_method": "docker",
+  "version": "1.9.0",
+  "image_ref": "projectdiscovery/httpx:v1.9.0",
+  "image_source": "dockerhub",
+  "is_active": true,
+  "denied_options": ["-l", "-list", "-csv", "-o", "-oa", "-json", "-silent"],
+  "shadow_output_config": {
+    "preferred_format": "jsonl",
+    "formats": {
+      "jsonl": {
+        "transport": "stdout",
+        "enable_flags": ["-silent", "-json"],
+        "parser": "jsonl",
+        "path_mode": "streaming"
+      }
+    },
+    "default_path": "/tmp/shadow/httpx",
+    "filename_template": "{job_id}_{step_id}_{tool_name}_{timestamp}",
+    "parse_timeout_seconds": 30,
+    "fallback_to_stdout": true,
+    "is_streaming": true
+  },
+  "parser_config": {
+    "type": "jsonl",
+    "field_mappings": {
+      "host": ["url", "input"],
+      "title": ["title"],
+      "metadata": [
+        "status_code",
+        "tech",
+        "content_type",
+        "server",
+        "content_length",
+        "response_time"
+      ]
+    },
+    "default_severity": "SEVERITY_INFO",
+    "fingerprint_fields": ["url"]
+  }
+}
