@@ -103,7 +103,9 @@ pipeline {
             }
         }
 
+        // ─────────────────────────────────────────────
         stage('Validate') {
+        // ─────────────────────────────────────────────
             steps {
                 script {
                     def names = env.SERVICE_NAMES.split(',')
@@ -120,145 +122,156 @@ pipeline {
         }
 
         // ─────────────────────────────────────────────
+        stage('Build & Push Docker Images') {
+        // ─────────────────────────────────────────────
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: env.DOCKER_CREDENTIALS_ID,
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+                    script {
+                        def buildAndPush = { String nvdBuildSecretArg ->
+                            withEnv(["NVD_BUILD_SECRET_ARG=${nvdBuildSecretArg}"]) {
+                                sh '''#!/bin/bash
+                                    set -euo pipefail
+
+                                    echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+
+                                    docker buildx inspect "$BUILDER_NAME" >/dev/null 2>&1 || \
+                                        docker buildx create --name "$BUILDER_NAME" --driver docker-container
+                                    docker buildx use "$BUILDER_NAME"
+                                    docker buildx inspect --bootstrap
+
+                                    BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+                                    IFS=',' read -ra NAMES        <<< "$SERVICE_NAMES"
+                                    IFS=',' read -ra DOCKERFILES  <<< "$SERVICE_DOCKERFILES"
+                                    IFS=',' read -ra CONTEXTS     <<< "$SERVICE_CONTEXTS"
+                                    IFS=',' read -ra IMAGES       <<< "$SERVICE_IMAGES"
+
+                                    for i in "${!NAMES[@]}"; do
+                                        IMAGE_REF="$DOCKER_USER/${IMAGES[$i]}"
+                                        echo "▶ Building ${NAMES[$i]} → $IMAGE_REF:$TAG"
+
+                                        EXTRA_TAGS=""
+                                        [ "$BRANCH" = "main" ] && EXTRA_TAGS="--tag $IMAGE_REF:latest"
+
+                                        docker buildx build \
+                                            --file    "${DOCKERFILES[$i]}" \
+                                            --cache-from "type=registry,ref=$IMAGE_REF:cache" \
+                                            --cache-to   "type=registry,ref=$IMAGE_REF:cache,mode=max" \
+                                            ${NVD_BUILD_SECRET_ARG:+$NVD_BUILD_SECRET_ARG} \
+                                            --push \
+                                            --tag "$IMAGE_REF:$TAG" \
+                                            $EXTRA_TAGS \
+                                            "${CONTEXTS[$i]}"
+
+                                        echo "✓ Pushed $IMAGE_REF:$TAG"
+                                    done
+                                '''
+                            }
+                        }
+
+                        try {
+                            withCredentials([
+                                string(
+                                    credentialsId: env.NVD_API_KEY_CREDENTIALS_ID,
+                                    variable: 'OWASP_NVD_API_KEY'
+                                )
+                            ]) {
+                                buildAndPush('--secret=id=nvd_api_key,env=OWASP_NVD_API_KEY')
+                            }
+                        } catch (Exception err) {
+                            def message = err.getMessage() ?: ''
+                            if (!message.contains("Could not find credentials entry with ID '${env.NVD_API_KEY_CREDENTIALS_ID}'")) {
+                                throw err
+                            }
+
+                            echo "NVD credential '${env.NVD_API_KEY_CREDENTIALS_ID}' is unavailable; continuing without the build secret."
+                            buildAndPush('')
+                        }
+                    }
+                }
+            }
+        }
+
+        // ─────────────────────────────────────────────
         stage('Deploy to Production') {
         // ─────────────────────────────────────────────
-        steps {
-            withCredentials([
-                usernamePassword(
-                    credentialsId: env.DOCKER_CREDENTIALS_ID,
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )
-            ]) {
-            sh '''#!/bin/bash
-                set -euo pipefail
-                IFS=',' read -ra NAMES  <<< "$SERVICE_NAMES"
-                IFS=',' read -ra IMAGES <<< "$SERVICE_IMAGES"
-                DEPLOY_DIR="/home/rattanakmony.pech.mit18/reffensive-api/production"
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: env.DOCKER_CREDENTIALS_ID,
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+                    sh '''#!/bin/bash
+                        set -euo pipefail
+                        IFS=',' read -ra NAMES  <<< "$SERVICE_NAMES"
+                        IFS=',' read -ra IMAGES <<< "$SERVICE_IMAGES"
+                        DEPLOY_DIR="/home/rattanakmony.pech.mit18/reffensive-api/production"
 
-                # Ensure dir exists + snapshot state before touching anything
-                ssh -i "$DEPLOYMENT_KEY" \
-                    -o StrictHostKeyChecking=no \
-                    -o BatchMode=yes \
-                    "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST" bash -s "$DEPLOY_DIR" <<'REMOTE'
-                set -eu
-                    DEPLOY_DIR="$1"
-                    mkdir -p "$DEPLOY_DIR"
-                    cd "$DEPLOY_DIR"
-                    if [ -f docker-compose.production.yml ]; then
-                        docker compose -f docker-compose.production.yml config \
-                            > "deployment-backup-$(date +%s).yml" 2>/dev/null || true
-                    fi
-                REMOTE
-
-                # Push latest compose file to remote
-                if [ -f "docker-compose.production.yml" ]; then
-                    scp -i "$DEPLOYMENT_KEY" \
-                        -o StrictHostKeyChecking=no \
-                        docker-compose.production.yml \
-                        "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST:$DEPLOY_DIR/docker-compose.production.yml"
-                fi
-
-                # Deploy each service
-                for i in "${!NAMES[@]}"; do
-                    IMAGE_REF="$DOCKER_USER/${IMAGES[$i]}:$TAG"
-                    SERVICE="${NAMES[$i]}"
-                    ssh -i "$DEPLOYMENT_KEY" \
-                        -o StrictHostKeyChecking=no \
-                        -o BatchMode=yes \
-                        "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST" bash -s \
-                            "$IMAGE_REF" "$SERVICE" "$DEPLOY_DIR" "$DOCKER_USER" "$TAG" <<'REMOTE'
-                    set -eu
-                    IMAGE_REF="$1"
-                    SERVICE="$2"
-                    DEPLOY_DIR="$3"
-                    export DOCKER_USER="$4"
-                    TAG="$5"
-                    cd "$DEPLOY_DIR"
-
-                    # Pull only this specific service's image
-                    docker pull "$IMAGE_REF"
-
-                    # Deploy only this service without checking/pulling dependencies
-                    # Override the image tag for just this service to ensure it uses the new image
-                    docker compose -f docker-compose.production.yml up -d \
-                        --force-recreate \
-                        --no-deps \
-                        "$SERVICE"
-
-                    echo "✓ Deployed: $SERVICE → $IMAGE_REF"
-                    REMOTE
-                done
-            '''
-        }
-    }
-}
-
-    // ─────────────────────────────────────────────
-    stage('Deploy to Production') {
-    // ─────────────────────────────────────────────
-        steps {
-            withCredentials([
-                usernamePassword(
-                    credentialsId: env.DOCKER_CREDENTIALS_ID,
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )
-            ]) {
-                sh '''#!/bin/bash
-                    set -euo pipefail
-                    IFS=',' read -ra NAMES  <<< "$SERVICE_NAMES"
-                    IFS=',' read -ra IMAGES <<< "$SERVICE_IMAGES"
-                    DEPLOY_DIR="/home/rattanakmony.pech.mit18/reffensive-api/production"
-
-                    # Ensure dir exists + snapshot state before touching anything
-                    ssh -i "$DEPLOYMENT_KEY" \
-                        -o StrictHostKeyChecking=no \
-                        -o BatchMode=yes \
-                        "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST" bash -s "$DEPLOY_DIR" <<'REMOTE'
-                        set -eu
-                        DEPLOY_DIR="$1"
-                        mkdir -p "$DEPLOY_DIR"
-                        cd "$DEPLOY_DIR"
-                        if [ -f docker-compose.production.yml ]; then
-                            docker compose -f docker-compose.production.yml config \
-                                > "deployment-backup-$(date +%s).yml" 2>/dev/null || true
-                        fi
-                    REMOTE
-
-                    # Push latest compose file to remote
-                    if [ -f "docker-compose.production.yml" ]; then
-                        scp -i "$DEPLOYMENT_KEY" \
-                            -o StrictHostKeyChecking=no \
-                            docker-compose.production.yml \
-                            "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST:$DEPLOY_DIR/docker-compose.production.yml"
-                    fi
-
-                    # Deploy each service
-                    for i in "${!NAMES[@]}"; do
-                        IMAGE_REF="$DOCKER_USER/${IMAGES[$i]}:$TAG"
-                        SERVICE="${NAMES[$i]}"
+                        # Ensure dir exists + snapshot state before touching anything
                         ssh -i "$DEPLOYMENT_KEY" \
                             -o StrictHostKeyChecking=no \
                             -o BatchMode=yes \
-                            "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST" bash -s \
-                                "$IMAGE_REF" "$SERVICE" "$DEPLOY_DIR" "$DOCKER_USER" "$TAG" <<'REMOTE'
-                            set -eu
-                            IMAGE_REF="$1"
-                            SERVICE="$2"
-                            DEPLOY_DIR="$3"
-                            export DOCKER_USER="$4"
-                            export TAG="$5"
-                            cd "$DEPLOY_DIR"
-                            docker pull "$IMAGE_REF"
-                            docker compose -f docker-compose.production.yml up -d --force-recreate "$SERVICE"
-                            echo "✓ Deployed: $SERVICE → $IMAGE_REF"
-                        REMOTE
-                    done
-                '''
+                            "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST" bash -s "$DEPLOY_DIR" <<'REMOTE'
+set -eu
+DEPLOY_DIR="$1"
+mkdir -p "$DEPLOY_DIR"
+cd "$DEPLOY_DIR"
+if [ -f docker-compose.production.yml ]; then
+    docker compose -f docker-compose.production.yml config \
+        > "deployment-backup-$(date +%s).yml" 2>/dev/null || true
+fi
+REMOTE
+
+                        # Push latest compose file to remote
+                        if [ -f "docker-compose.production.yml" ]; then
+                            scp -i "$DEPLOYMENT_KEY" \
+                                -o StrictHostKeyChecking=no \
+                                docker-compose.production.yml \
+                                "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST:$DEPLOY_DIR/docker-compose.production.yml"
+                        fi
+
+                        # Deploy each service
+                        for i in "${!NAMES[@]}"; do
+                            IMAGE_REF="$DOCKER_USER/${IMAGES[$i]}:$TAG"
+                            SERVICE="${NAMES[$i]}"
+                            ssh -i "$DEPLOYMENT_KEY" \
+                                -o StrictHostKeyChecking=no \
+                                -o BatchMode=yes \
+                                "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST" bash -s \
+                                    "$IMAGE_REF" "$SERVICE" "$DEPLOY_DIR" "$DOCKER_USER" "$TAG" <<'REMOTE'
+set -eu
+IMAGE_REF="$1"
+SERVICE="$2"
+DEPLOY_DIR="$3"
+export DOCKER_USER="$4"
+TAG="$5"
+cd "$DEPLOY_DIR"
+
+# Pull only this specific service's image
+docker pull "$IMAGE_REF"
+
+# Deploy only this service without checking/pulling dependencies
+# --no-deps prevents Docker Compose from pulling images for other services
+docker compose -f docker-compose.production.yml up -d \
+    --force-recreate \
+    --no-deps \
+    "$SERVICE"
+
+echo "✓ Deployed: $SERVICE → $IMAGE_REF"
+REMOTE
+                        done
+                    '''
+                }
+            }
         }
-    }
-}
 
         // ─────────────────────────────────────────────
         stage('Health Check') {
@@ -314,7 +327,7 @@ pipeline {
                             echo "✗ No backup found — manual intervention required"
                             exit 1
                         fi
-                    REMOTE
+REMOTE
                 '''
             }
         }
