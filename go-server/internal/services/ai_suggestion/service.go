@@ -26,23 +26,22 @@ import (
 const (
 	defaultAISuggestionURL = "http://localhost:8000/internal/ai/suggest"
 	selectSuggestionSQL    = `
-SELECT id, job_id, mode, provider, model, content, output_json, input_tokens, output_tokens, feedback, is_suggested, created_at, updated_at
+SELECT id, job_id, mode, provider, model, ''::text AS content, output_json, input_tokens, output_tokens, feedback, is_suggested, created_at, updated_at
 FROM ai_suggestions
 WHERE job_id = $1 AND mode = $2
 `
 	selectSuggestionByIDSQL = `
-SELECT id, job_id, mode, provider, model, content, output_json, input_tokens, output_tokens, feedback, is_suggested, created_at, updated_at
+SELECT id, job_id, mode, provider, model, ''::text AS content, output_json, input_tokens, output_tokens, feedback, is_suggested, created_at, updated_at
 FROM ai_suggestions
 WHERE id = $1
 `
 	upsertSuggestionSQL = `
-INSERT INTO ai_suggestions (job_id, mode, provider, model, content, output_json, input_tokens, output_tokens, feedback, is_suggested, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
+INSERT INTO ai_suggestions (job_id, mode, provider, model, output_json, input_tokens, output_tokens, feedback, is_suggested, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
 ON CONFLICT (job_id, mode)
 DO UPDATE SET
     provider = EXCLUDED.provider,
     model = EXCLUDED.model,
-    content = EXCLUDED.content,
     output_json = EXCLUDED.output_json,
     input_tokens = EXCLUDED.input_tokens,
     output_tokens = EXCLUDED.output_tokens,
@@ -52,13 +51,13 @@ DO UPDATE SET
     END,
     is_suggested = EXCLUDED.is_suggested,
     updated_at = now()
-RETURNING id, job_id, mode, provider, model, content, output_json, input_tokens, output_tokens, feedback, is_suggested, created_at, updated_at
+RETURNING id, job_id, mode, provider, model, ''::text AS content, output_json, input_tokens, output_tokens, feedback, is_suggested, created_at, updated_at
 `
 	updateFeedbackSQL = `
 UPDATE ai_suggestions
 SET feedback = $3, updated_at = now()
 WHERE job_id = $1 AND mode = $2
-RETURNING id, job_id, mode, provider, model, content, output_json, input_tokens, output_tokens, feedback, is_suggested, created_at, updated_at
+RETURNING id, job_id, mode, provider, model, ''::text AS content, output_json, input_tokens, output_tokens, feedback, is_suggested, created_at, updated_at
 `
 )
 
@@ -423,7 +422,6 @@ func (s *suggestionServer) upsertSuggestion(ctx context.Context, jobUUID uuid.UU
 		mode,
 		strings.TrimSpace(aiResp.Provider),
 		strings.TrimSpace(aiResp.Model),
-		"",
 		[]byte(aiResp.Output),
 		aiResp.Usage.InputTokens,
 		aiResp.Usage.OutputTokens,

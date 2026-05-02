@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
 from app.core.config import get_settings
-from app.dependencies.auth import CurrentUser, get_scan_current_user
+from app.dependencies.auth import CurrentUser, get_scan_current_user, require_scan_permission
 from app.internal.medium_scan_client import medium_scan_client
 from app.schemas.medium_scan_schemas import (
     MediumJobParsedDataResponse,

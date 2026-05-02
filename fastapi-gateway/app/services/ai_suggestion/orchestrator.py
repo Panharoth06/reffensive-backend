@@ -330,7 +330,7 @@ async def generate_ai_suggestion(mode: SuggestionMode, context: dict[str, Any]) 
             provider=result.provider,
             model=result.model,
             content="",
-            output=normalize_output(mode, result.content),
+            output=normalize_output(mode, result.content, effective_context),
             usage=InternalAISuggestionUsage(
                 input_tokens=result.input_tokens,
                 output_tokens=result.output_tokens,

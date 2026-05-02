@@ -37,3 +37,5 @@ proto/gen/
 
 front/
 go-server/gen/
+
+medium-scan-json/

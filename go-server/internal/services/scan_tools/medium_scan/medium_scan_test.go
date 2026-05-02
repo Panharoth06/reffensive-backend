@@ -165,6 +165,48 @@ func TestExtractMediumOptions_RejectsInvalidDefinition(t *testing.T) {
 	}
 }
 
+func TestExtractMediumOptions_AllowsDuplicateIdenticalKey(t *testing.T) {
+	cfg := ToolConfig{
+		ScanConfig: ScanConfig{
+			Medium: MediumConfig{
+				Options: []OptionDefinition{
+					{Key: "depth", Flag: "-depth", Type: OptionTypeInteger},
+					{Key: "depth", Flag: "-depth", Type: OptionTypeInteger}, // duplicate, identical
+				},
+			},
+		},
+	}
+
+	got, err := ExtractMediumOptions(cfg)
+	if err != nil {
+		t.Fatalf("ExtractMediumOptions returned error: %v", err)
+	}
+	if _, ok := got.ByKey["depth"]; !ok {
+		t.Fatalf("expected key %q to exist", "depth")
+	}
+	if len(got.Ordered) != 1 {
+		t.Fatalf("expected duplicate to be ignored; ordered len=%d", len(got.Ordered))
+	}
+}
+
+func TestExtractMediumOptions_RejectsDuplicateDifferentDefinition(t *testing.T) {
+	cfg := ToolConfig{
+		ScanConfig: ScanConfig{
+			Medium: MediumConfig{
+				Options: []OptionDefinition{
+					{Key: "depth", Flag: "-depth", Type: OptionTypeInteger},
+					{Key: "depth", Flag: "-d", Type: OptionTypeInteger}, // duplicate, different flag
+				},
+			},
+		},
+	}
+
+	_, err := ExtractMediumOptions(cfg)
+	if err == nil {
+		t.Fatal("expected error for duplicate different definitions")
+	}
+}
+
 func TestBuildMediumInvocation_UsesSchemaInputFlag(t *testing.T) {
 	toolRow := db.Tool{
 		ToolName:    "subfinder",

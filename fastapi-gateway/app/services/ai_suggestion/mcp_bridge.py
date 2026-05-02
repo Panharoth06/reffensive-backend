@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from typing import Any
+from urllib.parse import urlparse
 
 from app.schemas.ai_suggestion_schemas import InternalMCPContextResponse, SuggestionMode
 
@@ -28,12 +29,41 @@ def _normalize_dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _context_findings(context: dict[str, Any]) -> list[dict[str, Any]]:
+    raw_findings = context.get("top_findings", context.get("findings"))
+    findings = _normalize_list(raw_findings)
+    return [item for item in findings if isinstance(item, dict)]
+
+
+def _context_results(context: dict[str, Any]) -> list[dict[str, Any]]:
+    raw_results = context.get("results", context.get("scan_results"))
+    results = _normalize_list(raw_results)
+    return [item for item in results if isinstance(item, dict)]
+
+
 def _sort_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(
         findings,
         key=lambda item: _SEVERITY_RANK.get(_normalize_text(item.get("severity")).lower(), 0),
         reverse=True,
     )
+
+
+def _dedupe(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for value in values:
+        normalized = _normalize_text(value)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(normalized)
+    return deduped
+
+
+def _is_web_url(value: str) -> bool:
+    parsed = urlparse(value)
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
 def _linked_assets(context: dict[str, Any]) -> list[str]:
@@ -47,20 +77,12 @@ def _linked_assets(context: dict[str, Any]) -> list[str]:
         if isinstance(host, str) and host.strip():
             assets.append(host.strip())
 
-    for finding in _normalize_list(context.get("top_findings")):
-        if not isinstance(finding, dict):
-            continue
+    for finding in _context_findings(context):
         host = _normalize_text(finding.get("host"))
         if host:
             assets.append(host)
 
-    seen: set[str] = set()
-    deduped: list[str] = []
-    for asset in assets:
-        if asset not in seen:
-            seen.add(asset)
-            deduped.append(asset)
-    return deduped
+    return _dedupe(assets)
 
 
 def _exposed_services(context: dict[str, Any]) -> list[str]:
@@ -72,28 +94,18 @@ def _exposed_services(context: dict[str, Any]) -> list[str]:
         primary = linked_assets[0]
         services.extend(f"{primary}:{port}" for port in ports[:8])
 
-    for finding in _normalize_list(context.get("top_findings")):
-        if not isinstance(finding, dict):
-            continue
+    for finding in _context_findings(context):
         host = _normalize_text(finding.get("host"))
         port = finding.get("port")
         if host and isinstance(port, int):
             services.append(f"{host}:{port}")
 
-    seen: set[str] = set()
-    deduped: list[str] = []
-    for service in services:
-        if service not in seen:
-            seen.add(service)
-            deduped.append(service)
-    return deduped[:10]
+    return _dedupe(services)[:10]
 
 
 def _findings_by_host(context: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
     grouped: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
-    for finding in _normalize_list(context.get("top_findings")):
-        if not isinstance(finding, dict):
-            continue
+    for finding in _context_findings(context):
         host = _normalize_text(finding.get("host")) or "unknown"
         grouped[host].append(
             {
@@ -111,10 +123,8 @@ def _tool_observations(context: dict[str, Any]) -> list[dict[str, Any]]:
     observations: list[dict[str, Any]] = []
     grouped: defaultdict[str, Counter] = defaultdict(Counter)
 
-    for result in _normalize_list(context.get("results")):
-        if not isinstance(result, dict):
-            continue
-        tool = _normalize_text(result.get("tool")) or "unknown"
+    for result in _context_results(context):
+        tool = _normalize_text(result.get("tool")) or _normalize_text(result.get("tool_name")) or "unknown"
         severity = _normalize_text(result.get("severity")).lower() or "unknown"
         grouped[tool][severity] += 1
 
@@ -131,9 +141,65 @@ def _tool_observations(context: dict[str, Any]) -> list[dict[str, Any]]:
     return observations[:8]
 
 
+def _candidate_urls(context: dict[str, Any]) -> list[str]:
+    urls: list[str] = []
+    for result in _context_results(context):
+        parsed_data = _normalize_dict(result.get("parsed_data"))
+        for key in ("url", "endpoint"):
+            value = _normalize_text(parsed_data.get(key))
+            if _is_web_url(value):
+                urls.append(value)
+        for key in ("urls", "endpoints"):
+            values = _normalize_list(parsed_data.get(key))
+            urls.extend(value for value in values if isinstance(value, str) and _is_web_url(value))
+
+        scheme = _normalize_text(parsed_data.get("scheme")).lower()
+        host = _normalize_text(parsed_data.get("host"))
+        path = _normalize_text(parsed_data.get("path"))
+        port = parsed_data.get("port")
+        if scheme in {"http", "https"} and host:
+            suffix = path if path.startswith("/") else f"/{path}" if path else ""
+            if isinstance(port, int) and port > 0 and not ((scheme == "https" and port == 443) or (scheme == "http" and port == 80)):
+                urls.append(f"{scheme}://{host}:{port}{suffix}")
+            else:
+                urls.append(f"{scheme}://{host}{suffix}")
+    return _dedupe(urls)[:10]
+
+
+def _candidate_paths(context: dict[str, Any]) -> list[str]:
+    paths: list[str] = []
+    for result in _context_results(context):
+        parsed_data = _normalize_dict(result.get("parsed_data"))
+        path = _normalize_text(parsed_data.get("path"))
+        if path:
+            paths.append(path)
+        for item in _normalize_list(parsed_data.get("paths")):
+            if isinstance(item, str) and item.strip():
+                paths.append(item.strip())
+    return _dedupe(paths)[:10]
+
+
+def _executed_tools(tool_observations: list[dict[str, Any]]) -> list[str]:
+    return _dedupe([_normalize_text(item.get("tool")) for item in tool_observations])[:8]
+
+
+def _workflow_hints(context: dict[str, Any], linked_assets: list[str], tool_observations: list[dict[str, Any]], candidate_urls: list[str]) -> list[str]:
+    executed = set(_executed_tools(tool_observations))
+    hints: list[str] = []
+    if {"subfinder", "amass"} & executed:
+        hints.append("Discovery already ran on this target; avoid repeating enumeration unless new scope appears.")
+    if len(linked_assets) > 1 and "httpx" not in executed:
+        hints.append("Multiple assets are already known; validate live web exposure before broadening discovery.")
+    if candidate_urls:
+        hints.append("Concrete URLs exist; prefer endpoint-specific verification over generic host-level probing.")
+    if _normalize_dict(context.get("severity_counts")).get("high"):
+        hints.append("Highest-severity findings should drive the first follow-up step.")
+    return _dedupe(hints)[:6]
+
+
 def _focus_areas(mode: SuggestionMode, context: dict[str, Any]) -> list[str]:
     severity_counts = _normalize_dict(context.get("severity_counts"))
-    top_findings = _normalize_list(context.get("top_findings"))
+    top_findings = _context_findings(context)
     ports = [port for port in _normalize_list(context.get("ports")) if isinstance(port, int)]
 
     areas: list[str] = []
@@ -164,7 +230,7 @@ def _focus_areas(mode: SuggestionMode, context: dict[str, Any]) -> list[str]:
 
 def _summary(mode: SuggestionMode, context: dict[str, Any], linked_assets: list[str], exposed_services: list[str]) -> str:
     severity_counts = _normalize_dict(context.get("severity_counts"))
-    total_findings = len(_normalize_list(context.get("top_findings")))
+    total_findings = len(_context_findings(context))
     asset_text = linked_assets[0] if linked_assets else "the scanned target"
     severity_text = ", ".join(f"{value} {key}" for key, value in severity_counts.items() if value) or "no severity counts"
     service_text = ", ".join(exposed_services[:3]) if exposed_services else "no exposed services identified"
@@ -183,6 +249,10 @@ def build_mcp_context_payload(mode: SuggestionMode, context: dict[str, Any]) -> 
     exposed_services = _exposed_services(context)
     findings_by_host = _findings_by_host(context)
     tool_observations = _tool_observations(context)
+    candidate_urls = _candidate_urls(context)
+    candidate_paths = _candidate_paths(context)
+    executed_tools = _executed_tools(tool_observations)
+    workflow_hints = _workflow_hints(context, linked_assets, tool_observations, candidate_urls)
     focus_areas = _focus_areas(mode, context)
 
     enriched_context = {
@@ -196,8 +266,12 @@ def build_mcp_context_payload(mode: SuggestionMode, context: dict[str, Any]) -> 
         "target_profile": _normalize_dict(context.get("target")),
         "linked_assets": linked_assets,
         "exposed_services": exposed_services,
+        "candidate_urls": candidate_urls,
+        "candidate_paths": candidate_paths,
+        "executed_tools": executed_tools,
         "findings_by_host": findings_by_host,
         "tool_observations": tool_observations,
+        "workflow_hints": workflow_hints,
         "focus_areas": focus_areas,
         "scan_metadata": _normalize_dict(context.get("metadata")),
     }
