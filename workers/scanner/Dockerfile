@@ -8,12 +8,13 @@ COPY workers/scanner/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY proto/ /proto/
+
 RUN mkdir -p proto && \
-    python -m grpc_tools.protoc \
-      -I/proto \
-      --python_out=. \
-      --grpc_python_out=. \
-      /proto/tool.proto && \
+    find /proto -name "*.proto" -exec \
+      python -m grpc_tools.protoc \
+        -I/proto \
+        --python_out=. \
+        --grpc_python_out=. {} \; && \
     touch proto/__init__.py
 
 COPY workers/scanner/ .
