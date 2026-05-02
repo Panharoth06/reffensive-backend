@@ -46,3 +46,4 @@ def delete_category(
     current_user: CurrentUser = Depends(require_web_admin),
 ) -> dict:
     return category_client.delete_category(category_id)
+
