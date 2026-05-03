@@ -47,7 +47,7 @@ func (q *Queries) CountFindingsByJobAndSeverity(ctx context.Context, jobID uuid.
 const createAISuggestion = `-- name: CreateAISuggestion :one
 INSERT INTO ai_suggestions (job_id, content)
 VALUES ($1, $2)
-RETURNING id, job_id, content, is_suggested, created_at
+RETURNING id, job_id, content, is_suggested, created_at, mode, provider, model, output_json, input_tokens, output_tokens, feedback, updated_at
 `
 
 type CreateAISuggestionParams struct {
@@ -64,6 +64,14 @@ func (q *Queries) CreateAISuggestion(ctx context.Context, arg CreateAISuggestion
 		&i.Content,
 		&i.IsSuggested,
 		&i.CreatedAt,
+		&i.Mode,
+		&i.Provider,
+		&i.Model,
+		&i.OutputJson,
+		&i.InputTokens,
+		&i.OutputTokens,
+		&i.Feedback,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -119,7 +127,7 @@ func (q *Queries) CreateFinding(ctx context.Context, arg CreateFindingParams) (F
 }
 
 const getAISuggestionByJobID = `-- name: GetAISuggestionByJobID :one
-SELECT id, job_id, content, is_suggested, created_at FROM ai_suggestions
+SELECT id, job_id, content, is_suggested, created_at, mode, provider, model, output_json, input_tokens, output_tokens, feedback, updated_at FROM ai_suggestions
 WHERE job_id = $1
 `
 
@@ -132,6 +140,14 @@ func (q *Queries) GetAISuggestionByJobID(ctx context.Context, jobID uuid.UUID) (
 		&i.Content,
 		&i.IsSuggested,
 		&i.CreatedAt,
+		&i.Mode,
+		&i.Provider,
+		&i.Model,
+		&i.OutputJson,
+		&i.InputTokens,
+		&i.OutputTokens,
+		&i.Feedback,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -289,7 +305,7 @@ SET
     content      = $2,
     is_suggested = $3
 WHERE job_id = $1
-RETURNING id, job_id, content, is_suggested, created_at
+RETURNING id, job_id, content, is_suggested, created_at, mode, provider, model, output_json, input_tokens, output_tokens, feedback, updated_at
 `
 
 type UpdateAISuggestionParams struct {
@@ -307,6 +323,14 @@ func (q *Queries) UpdateAISuggestion(ctx context.Context, arg UpdateAISuggestion
 		&i.Content,
 		&i.IsSuggested,
 		&i.CreatedAt,
+		&i.Mode,
+		&i.Provider,
+		&i.Model,
+		&i.OutputJson,
+		&i.InputTokens,
+		&i.OutputTokens,
+		&i.Feedback,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

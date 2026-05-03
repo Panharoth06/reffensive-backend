@@ -14,10 +14,11 @@ import (
 )
 
 func (s *ScannerServer) ListDependencies(ctx context.Context, req *pb.ListDependenciesRequest) (*pb.ListDependenciesResponse, error) {
-	scanID, err := parseScanID(req.GetScanId())
+	scan, err := s.getScan(ctx, req.GetScanId())
 	if err != nil {
 		return nil, err
 	}
+	scanID := scan.ID
 	page, pageSize := normalizePage(req.GetPage(), req.GetPageSize())
 
 	items, total, err := s.depRepo.ListFindings(ctx, scanID.String(), repository.DependencyFilters{
@@ -43,11 +44,11 @@ func (s *ScannerServer) ListDependencies(ctx context.Context, req *pb.ListDepend
 }
 
 func (s *ScannerServer) GetDependencySummary(ctx context.Context, req *pb.ScanSummaryRequest) (*pb.DependencySummaryResponse, error) {
-	scanID, err := parseScanID(req.GetScanId())
+	scan, err := s.getScan(ctx, req.GetScanId())
 	if err != nil {
 		return nil, err
 	}
-	return s.dependencySummary(ctx, scanID)
+	return s.dependencySummary(ctx, scan.ID)
 }
 
 func (s *ScannerServer) dependencySummary(ctx context.Context, scanID uuid.UUID) (*pb.DependencySummaryResponse, error) {

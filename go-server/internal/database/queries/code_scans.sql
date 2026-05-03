@@ -83,6 +83,10 @@ RETURNING *;
 SELECT * FROM scans
 WHERE id = $1;
 
+-- name: DeleteUnifiedScan :execrows
+DELETE FROM scans
+WHERE id = $1;
+
 -- name: UpdateUnifiedScanProgress :one
 UPDATE scans
 SET progress = GREATEST(progress, $2),

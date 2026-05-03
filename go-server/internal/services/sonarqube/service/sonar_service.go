@@ -13,10 +13,11 @@ import (
 
 // GetScanSummary returns SonarQube quality gate data with dependency summary.
 func (s *ScannerServer) GetScanSummary(ctx context.Context, req *pb.ScanSummaryRequest) (*pb.ScanSummaryResponse, error) {
-	scanID, err := parseScanID(req.GetScanId())
+	scan, err := s.getScan(ctx, req.GetScanId())
 	if err != nil {
 		return nil, err
 	}
+	scanID := scan.ID
 
 	sonarResult, err := s.sonarRepo.GetResult(ctx, scanID.String())
 	if err != nil {

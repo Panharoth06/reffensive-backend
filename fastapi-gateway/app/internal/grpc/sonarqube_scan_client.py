@@ -14,6 +14,7 @@ from app.schemas.sonarqube_scan_schemas import (
     ActivityChangeResponse,
     ActivityCommentResponse,
     ActivityDiffResponse,
+    DeleteScanResponse,
     DescriptionSectionResponse,
     DependencyListResponse,
     DependencyResponse,
@@ -29,10 +30,13 @@ from app.schemas.sonarqube_scan_schemas import (
     ListIssuesResponse,
     ProjectScanResponse,
     ProjectScansResponse,
+    RetryScanResponse,
+    ScanDetailResponse,
     ScanLogChunkResponse,
     ScanLogsResponse,
     ScanStatusResponse,
     ScanSummaryResponse,
+    StopScanResponse,
     TextRangeResponse,
     TriggerScanRequest,
     TriggerScanResponse,
@@ -108,6 +112,7 @@ def _status_name(value: int) -> str:
         sonarqube_pb2.SCAN_STATUS_SUCCESS: "SUCCESS",
         sonarqube_pb2.SCAN_STATUS_FAILED: "FAILED",
         sonarqube_pb2.SCAN_STATUS_PARTIAL: "PARTIAL",
+        sonarqube_pb2.SCAN_STATUS_CANCELLED: "CANCELLED",
     }
     return mapping.get(value, "FAILED")
 
@@ -231,6 +236,17 @@ def _dependency_from_proto(item) -> DependencyResponse:
     )
 
 
+def _scan_phase_rows(items) -> list[dict[str, str]]:
+    return [
+        {
+            "key": phase.key,
+            "status": phase.status,
+            "error_message": phase.error_message,
+        }
+        for phase in items
+    ]
+
+
 def _scan_status_from_proto(item) -> ScanStatusResponse:
     return ScanStatusResponse(
         scan_id=item.scan_id,
@@ -239,14 +255,24 @@ def _scan_status_from_proto(item) -> ScanStatusResponse:
         started_at=_ts(item.started_at),
         finished_at=_ts(item.finished_at),
         error_message=item.error_message,
-        phases=[
-            {
-                "key": phase.key,
-                "status": phase.status,
-                "error_message": phase.error_message,
-            }
-            for phase in item.phases
-        ],
+        phases=_scan_phase_rows(item.phases),
+    )
+
+
+def _scan_detail_from_proto(item) -> ScanDetailResponse:
+    return ScanDetailResponse(
+        scan_id=item.scan_id,
+        project_key=item.project_key,
+        sonar_project_key=item.sonar_project_key,
+        repo_url=item.repo_url,
+        branch=item.branch,
+        status=_status_name(item.status),
+        progress=item.progress,
+        created_at=_ts(item.created_at),
+        started_at=_ts(item.started_at),
+        finished_at=_ts(item.finished_at),
+        error_message=item.error_message,
+        phases=_scan_phase_rows(item.phases),
     )
 
 
@@ -375,6 +401,86 @@ class SonarqubeScanClient:
         except grpc.RpcError as exc:
             raise_for_grpc_error(exc)
         return _scan_status_from_proto(response)
+
+    def get_scan_detail(
+        self,
+        scan_id: str,
+        user_id: str,
+        api_key_id: str | None = None,
+        api_project_id: str | None = None,
+    ) -> ScanDetailResponse:
+        try:
+            stub = self._make_stub_with_user(user_id, api_key_id=api_key_id, api_project_id=api_project_id)
+            response = stub.GetScanDetail(
+                sonarqube_pb2.ScanStatusRequest(scan_id=scan_id),
+                timeout=10.0,
+            )
+        except grpc.RpcError as exc:
+            raise_for_grpc_error(exc)
+        return _scan_detail_from_proto(response)
+
+    def stop_scan(
+        self,
+        scan_id: str,
+        user_id: str,
+        api_key_id: str | None = None,
+        api_project_id: str | None = None,
+    ) -> StopScanResponse:
+        try:
+            stub = self._make_stub_with_user(user_id, api_key_id=api_key_id, api_project_id=api_project_id)
+            response = stub.StopScan(
+                sonarqube_pb2.ScanStatusRequest(scan_id=scan_id),
+                timeout=10.0,
+            )
+        except grpc.RpcError as exc:
+            raise_for_grpc_error(exc)
+        return StopScanResponse(
+            scan_id=response.scan_id,
+            status=_status_name(response.status),
+            message=response.message,
+        )
+
+    def retry_scan(
+        self,
+        scan_id: str,
+        user_id: str,
+        api_key_id: str | None = None,
+        api_project_id: str | None = None,
+    ) -> RetryScanResponse:
+        try:
+            stub = self._make_stub_with_user(user_id, api_key_id=api_key_id, api_project_id=api_project_id)
+            response = stub.RetryScan(
+                sonarqube_pb2.ScanStatusRequest(scan_id=scan_id),
+                timeout=10.0,
+            )
+        except grpc.RpcError as exc:
+            raise_for_grpc_error(exc)
+        return RetryScanResponse(
+            source_scan_id=response.source_scan_id,
+            scan_id=response.scan_id,
+            status=_status_name(response.status),
+            created_at=_ts(response.created_at),
+        )
+
+    def delete_scan(
+        self,
+        scan_id: str,
+        user_id: str,
+        api_key_id: str | None = None,
+        api_project_id: str | None = None,
+    ) -> DeleteScanResponse:
+        try:
+            stub = self._make_stub_with_user(user_id, api_key_id=api_key_id, api_project_id=api_project_id)
+            response = stub.DeleteScan(
+                sonarqube_pb2.ScanStatusRequest(scan_id=scan_id),
+                timeout=10.0,
+            )
+        except grpc.RpcError as exc:
+            raise_for_grpc_error(exc)
+        return DeleteScanResponse(
+            scan_id=response.scan_id,
+            deleted=response.deleted,
+        )
 
     def get_scan_logs(
         self,

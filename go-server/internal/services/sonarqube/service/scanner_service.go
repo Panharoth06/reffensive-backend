@@ -36,6 +36,7 @@ const (
 	scanStatusSuccess     = "SUCCESS"
 	scanStatusFailed      = "FAILED"
 	scanStatusPartial     = "PARTIAL"
+	scanStatusCancelled   = "CANCELLED"
 	phaseStatusPending    = "PENDING"
 	phaseStatusRunning    = "IN_PROGRESS"
 	phaseStatusDone       = "SUCCESS"
@@ -62,6 +63,8 @@ type ScannerServer struct {
 	scanLogTTL          time.Duration
 	tmpRoot             string
 	logMu               sync.Mutex
+	runningScanMu       sync.Mutex
+	runningScanCancels  map[string]context.CancelFunc
 }
 
 type scanRequest struct {
@@ -119,6 +122,7 @@ func NewScannerServer(queries *db.Queries) (*ScannerServer, error) {
 		scanLogHistoryLimit: scanLogHistoryLimitFromEnv(),
 		scanLogTTL:          scanLogTTLFromEnv(),
 		tmpRoot:             tmpRoot,
+		runningScanCancels:  make(map[string]context.CancelFunc),
 	}, nil
 }
 

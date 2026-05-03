@@ -13,6 +13,7 @@ enum ScanStatus {
   SCAN_STATUS_SUCCESS = 3;
   SCAN_STATUS_FAILED = 4;
   SCAN_STATUS_PARTIAL = 5;
+  SCAN_STATUS_CANCELLED = 6;
 }
 
 enum QualityGateStatus {
@@ -55,7 +56,11 @@ enum Language {
 
 service SonarqubeService {
   rpc TriggerScan      (TriggerScanRequest)   returns (TriggerScanResponse);
+  rpc GetScanDetail    (ScanStatusRequest)    returns (ScanDetailResponse);
   rpc GetScanStatus    (ScanStatusRequest)    returns (ScanStatusResponse);
+  rpc StopScan         (ScanStatusRequest)    returns (StopScanResponse);
+  rpc RetryScan        (ScanStatusRequest)    returns (RetryScanResponse);
+  rpc DeleteScan       (ScanStatusRequest)    returns (DeleteScanResponse);
   rpc GetScanLogs      (ScanLogsRequest)      returns (ScanLogsResponse);
   rpc GetScanSummary   (ScanSummaryRequest)   returns (ScanSummaryResponse);
   rpc ListIssues       (ListIssuesRequest)    returns (ListIssuesResponse);
@@ -93,6 +98,39 @@ message ScanStatusResponse {
   google.protobuf.Timestamp finished_at = 5;
   string error_message = 6;
   repeated ScanPhase phases = 7;
+}
+
+message ScanDetailResponse {
+  string scan_id = 1;
+  string project_key = 2;
+  string sonar_project_key = 3;
+  string repo_url = 4;
+  string branch = 5;
+  ScanStatus status = 6;
+  int32 progress = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp started_at = 9;
+  google.protobuf.Timestamp finished_at = 10;
+  string error_message = 11;
+  repeated ScanPhase phases = 12;
+}
+
+message StopScanResponse {
+  string scan_id = 1;
+  ScanStatus status = 2;
+  string message = 3;
+}
+
+message RetryScanResponse {
+  string source_scan_id = 1;
+  string scan_id = 2;
+  ScanStatus status = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message DeleteScanResponse {
+  string scan_id = 1;
+  bool deleted = 2;
 }
 
 message ScanPhase {

@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -33,7 +34,7 @@ type runnerConfig struct {
 	jsNodeMaxSpace       string
 }
 
-func Run(ctx context.Context, sourceDir, projectKey, branch string) error {
+func Run(ctx context.Context, sourceDir, projectKey, branch string, extraProperties map[string]string) error {
 	cfg, err := runnerConfigFromEnv()
 	if err != nil {
 		return err
@@ -58,7 +59,7 @@ func Run(ctx context.Context, sourceDir, projectKey, branch string) error {
 		log = &fallback
 	}
 
-	err = runScannerAttempt(ctx, cfg, log, sourceDir, projectKey, branch, cfg.enableBranchAnalysis)
+	err = runScannerAttempt(ctx, cfg, log, sourceDir, projectKey, branch, cfg.enableBranchAnalysis, extraProperties)
 	if err == nil {
 		return nil
 	}
@@ -69,10 +70,19 @@ func Run(ctx context.Context, sourceDir, projectKey, branch string) error {
 
 	scanlogging.Warn(ctx, "SonarQube does not support branch analysis; retrying without sonar.branch.name")
 	log.Warn().Str("branch", branch).Msg("SonarQube does not support branch analysis; retrying without sonar.branch.name")
-	return runScannerAttempt(ctx, cfg, log, sourceDir, projectKey, branch, false)
+	return runScannerAttempt(ctx, cfg, log, sourceDir, projectKey, branch, false, extraProperties)
 }
 
-func scannerArgs(sourceDir, projectKey, branch, hostURL, token string, includeBranch bool, jsNodeMaxSpace string) []string {
+func scannerArgs(
+	sourceDir,
+	projectKey,
+	branch,
+	hostURL,
+	token string,
+	includeBranch bool,
+	jsNodeMaxSpace string,
+	extraProperties map[string]string,
+) []string {
 	args := []string{
 		"-Dsonar.projectKey=" + projectKey,
 		"-Dsonar.projectBaseDir=" + sourceDir,
@@ -86,6 +96,20 @@ func scannerArgs(sourceDir, projectKey, branch, hostURL, token string, includeBr
 	}
 	if strings.TrimSpace(jsNodeMaxSpace) != "" {
 		args = append(args, "-Dsonar.javascript.node.maxspace="+jsNodeMaxSpace)
+	}
+	if len(extraProperties) > 0 {
+		keys := make([]string, 0, len(extraProperties))
+		for key := range extraProperties {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			value := strings.TrimSpace(extraProperties[key])
+			if value == "" {
+				continue
+			}
+			args = append(args, fmt.Sprintf("-D%s=%s", key, value))
+		}
 	}
 	return args
 }
@@ -162,11 +186,21 @@ func runScannerAttempt(
 	log *zerolog.Logger,
 	sourceDir, projectKey, branch string,
 	includeBranch bool,
+	extraProperties map[string]string,
 ) error {
 	runCtx, cancel := context.WithTimeout(ctx, cfg.timeout)
 	defer cancel()
 
-	args := scannerArgs(sourceDir, projectKey, branch, cfg.hostURL, cfg.token, includeBranch, cfg.jsNodeMaxSpace)
+	args := scannerArgs(
+		sourceDir,
+		projectKey,
+		branch,
+		cfg.hostURL,
+		cfg.token,
+		includeBranch,
+		cfg.jsNodeMaxSpace,
+		extraProperties,
+	)
 	cmd := exec.CommandContext(runCtx, cfg.scannerBin, args...)
 	cmd.Dir = sourceDir
 
@@ -193,6 +227,9 @@ func runScannerAttempt(
 	waitErr := cmd.Wait()
 	wg.Wait()
 
+	if errors.Is(runCtx.Err(), context.Canceled) {
+		return context.Canceled
+	}
 	if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
 		return fmt.Errorf("sonar-scanner timed out after %s", cfg.timeout)
 	}

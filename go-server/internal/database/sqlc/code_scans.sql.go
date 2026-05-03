@@ -180,6 +180,19 @@ func (q *Queries) CreateUnifiedScan(ctx context.Context, arg CreateUnifiedScanPa
 	return i, err
 }
 
+const deleteUnifiedScan = `-- name: DeleteUnifiedScan :execrows
+DELETE FROM scans
+WHERE id = $1
+`
+
+func (q *Queries) DeleteUnifiedScan(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteUnifiedScan, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getRepositorySnapshotByCommit = `-- name: GetRepositorySnapshotByCommit :one
 SELECT id, repository_id, branch_name, commit_sha, source_snapshot_hash, dependency_hash, created_at FROM repository_snapshots
 WHERE repository_id = $1 AND commit_sha = $2

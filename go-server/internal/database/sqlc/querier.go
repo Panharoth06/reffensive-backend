@@ -53,6 +53,7 @@ type Querier interface {
 	DeleteTarget(ctx context.Context, arg DeleteTargetParams) error
 	DeleteTool(ctx context.Context, toolID uuid.UUID) error
 	DeleteToolCategory(ctx context.Context, categoryID uuid.UUID) error
+	DeleteUnifiedScan(ctx context.Context, id uuid.UUID) (int64, error)
 	DeleteUser(ctx context.Context, userID uuid.UUID) (int64, error)
 	FinishScanJob(ctx context.Context, arg FinishScanJobParams) (ScanJob, error)
 	FinishScanStep(ctx context.Context, arg FinishScanStepParams) (ScanStep, error)

@@ -2,8 +2,10 @@ package dependency
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 
 	appconfig "go-server/pkg/config"
@@ -16,8 +18,8 @@ type Config = appconfig.Config
 type ScannerFunc func(ctx context.Context, sourceDir string) ([]*Finding, error)
 
 type Runner struct {
-	logger Logger
-	cfg    Config
+	logger   Logger
+	cfg      Config
 	scanners map[string]ScannerFunc
 }
 
@@ -44,6 +46,7 @@ func (r *Runner) Run(ctx context.Context, sourceDir string) ([]*Finding, error) 
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	allFindings := make([]*Finding, 0)
+	runErrors := make([]error, 0)
 
 	for _, language := range languages {
 		language := language
@@ -62,6 +65,9 @@ func (r *Runner) Run(ctx context.Context, sourceDir string) ([]*Finding, error) 
 					Str("language", language.Name).
 					Err(err).
 					Msg("language scan failed")
+				mu.Lock()
+				runErrors = append(runErrors, fmt.Errorf("%s dependency scan failed: %w", strings.ToUpper(language.Name), err))
+				mu.Unlock()
 				return
 			}
 
@@ -77,7 +83,7 @@ func (r *Runner) Run(ctx context.Context, sourceDir string) ([]*Finding, error) 
 	}
 
 	wg.Wait()
-	return allFindings, nil
+	return allFindings, errors.Join(runErrors...)
 }
 
 func (r *Runner) runForLanguage(ctx context.Context, language DetectedLanguage, sourceDir string) ([]*Finding, error) {

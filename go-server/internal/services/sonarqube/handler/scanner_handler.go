@@ -32,6 +32,19 @@ func (h *ScannerHandler) TriggerScan(ctx context.Context, req *pb.TriggerScanReq
 	return resp, nil
 }
 
+// GetScanDetail retrieves metadata and phase state for a scan.
+func (h *ScannerHandler) GetScanDetail(ctx context.Context, req *pb.ScanStatusRequest) (*pb.ScanDetailResponse, error) {
+	if req.GetScanId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "scan_id is required")
+	}
+
+	resp, err := h.scannerService.GetScanDetail(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // GetScanStatus retrieves the status of a scan.
 func (h *ScannerHandler) GetScanStatus(ctx context.Context, req *pb.ScanStatusRequest) (*pb.ScanStatusResponse, error) {
 	if req.GetScanId() == "" {
@@ -39,6 +52,45 @@ func (h *ScannerHandler) GetScanStatus(ctx context.Context, req *pb.ScanStatusRe
 	}
 
 	resp, err := h.scannerService.GetScanStatus(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// StopScan cancels a queued or running scan.
+func (h *ScannerHandler) StopScan(ctx context.Context, req *pb.ScanStatusRequest) (*pb.StopScanResponse, error) {
+	if req.GetScanId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "scan_id is required")
+	}
+
+	resp, err := h.scannerService.StopScan(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// RetryScan re-queues a finished scan using the same input.
+func (h *ScannerHandler) RetryScan(ctx context.Context, req *pb.ScanStatusRequest) (*pb.RetryScanResponse, error) {
+	if req.GetScanId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "scan_id is required")
+	}
+
+	resp, err := h.scannerService.RetryScan(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// DeleteScan removes a finished scan and its persisted logs.
+func (h *ScannerHandler) DeleteScan(ctx context.Context, req *pb.ScanStatusRequest) (*pb.DeleteScanResponse, error) {
+	if req.GetScanId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "scan_id is required")
+	}
+
+	resp, err := h.scannerService.DeleteScan(ctx, req)
 	if err != nil {
 		return nil, err
 	}

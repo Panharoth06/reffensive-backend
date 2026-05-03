@@ -46,6 +46,9 @@ func Clone(ctx context.Context, repoURL string, branch string, destDir string) e
 }
 
 func classifyCloneError(ctx context.Context, stderr string, err error) error {
+	if errors.Is(ctx.Err(), context.Canceled) {
+		return context.Canceled
+	}
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return fmt.Errorf("%w: %s", ErrCloneTimeout, strings.TrimSpace(stderr))
 	}

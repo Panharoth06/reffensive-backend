@@ -90,7 +90,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         gradle \
         nodejs \
         npm \
-        openjdk-17-jre-headless \
+        openjdk-17-jdk-headless \
         php-cli \
         python3 \
         python3-pip \

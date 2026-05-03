@@ -11,11 +11,15 @@ from app.core.config import get_settings
 from app.dependencies.auth import CurrentUser, require_scan_permission
 from app.internal.grpc.sonarqube_scan_client import sonarqube_scan_client
 from app.schemas.sonarqube_scan_schemas import (
+    DeleteScanResponse,
     DependencySummaryResponse,
     DependencyListResponse,
     IssueDetailResponse,
     IssueListResponse,
     ScanTaskRefResponse,
+    ScanDetailResponse,
+    StopScanResponse,
+    RetryScanResponse,
     ScanStatusResponse,
     ScanSummaryResponse,
     TriggerScanRequest,
@@ -71,6 +75,29 @@ async def trigger_scan(
 
 
 @router.get(
+    "/scans/{scan_id}",
+    response_model=ScanDetailResponse,
+    summary="Get scan detail",
+)
+async def get_scan_detail(
+    scan_id: str,
+    current_user: CurrentUser = Depends(require_scan_permission),
+) -> ScanDetailResponse:
+    """Get the full persisted metadata and phase state for a scan."""
+    try:
+        return sonarqube_scan_client.get_scan_detail(
+            scan_id,
+            user_id=current_user.user_id,
+            api_key_id=current_user.api_key_id,
+            api_project_id=current_user.project_id,
+        )
+    except grpc.RpcError as exc:
+        raise_for_grpc_error(exc)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to get scan detail") from exc
+
+
+@router.get(
     "/scans/{scan_id}/status",
     response_model=ScanStatusResponse,
     summary="Get scan status",
@@ -93,6 +120,52 @@ async def get_scan_status(
         raise HTTPException(status_code=500, detail="Failed to get scan status") from exc
 
 
+@router.post(
+    "/scans/{scan_id}/stop",
+    response_model=StopScanResponse,
+    summary="Stop a scan",
+)
+async def stop_scan(
+    scan_id: str,
+    current_user: CurrentUser = Depends(require_scan_permission),
+) -> StopScanResponse:
+    """Cancel a queued or running scan."""
+    try:
+        return sonarqube_scan_client.stop_scan(
+            scan_id,
+            user_id=current_user.user_id,
+            api_key_id=current_user.api_key_id,
+            api_project_id=current_user.project_id,
+        )
+    except grpc.RpcError as exc:
+        raise_for_grpc_error(exc)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to stop scan") from exc
+
+
+@router.post(
+    "/scans/{scan_id}/retry",
+    response_model=RetryScanResponse,
+    summary="Retry a finished scan",
+)
+async def retry_scan(
+    scan_id: str,
+    current_user: CurrentUser = Depends(require_scan_permission),
+) -> RetryScanResponse:
+    """Create a new queued scan using the same repository, branch, and project key."""
+    try:
+        return sonarqube_scan_client.retry_scan(
+            scan_id,
+            user_id=current_user.user_id,
+            api_key_id=current_user.api_key_id,
+            api_project_id=current_user.project_id,
+        )
+    except grpc.RpcError as exc:
+        raise_for_grpc_error(exc)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to retry scan") from exc
+
+
 @router.get(
     "/scans/{scan_id}/stream",
     summary="Stream scan progress (SSE)",
@@ -107,6 +180,18 @@ async def stream_scan_progress(
     The stream will automatically close when the scan reaches a terminal state
     (SUCCESS, FAILED, or PARTIAL).
     """
+    try:
+        sonarqube_scan_client.get_scan_status(
+            scan_id,
+            user_id=current_user.user_id,
+            api_key_id=current_user.api_key_id,
+            api_project_id=current_user.project_id,
+        )
+    except grpc.RpcError as exc:
+        raise_for_grpc_error(exc)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to authorize scan stream") from exc
+
     settings = get_settings()
     subscriber = ProgressSubscriber(settings.redis_url)
 
@@ -468,3 +553,26 @@ async def list_project_scans(
         raise_for_grpc_error(exc)
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to list project scans") from exc
+
+
+@router.delete(
+    "/scans/{scan_id}",
+    response_model=DeleteScanResponse,
+    summary="Delete a finished scan",
+)
+async def delete_scan(
+    scan_id: str,
+    current_user: CurrentUser = Depends(require_scan_permission),
+) -> DeleteScanResponse:
+    """Delete a finished scan record and its persisted logs."""
+    try:
+        return sonarqube_scan_client.delete_scan(
+            scan_id,
+            user_id=current_user.user_id,
+            api_key_id=current_user.api_key_id,
+            api_project_id=current_user.project_id,
+        )
+    except grpc.RpcError as exc:
+        raise_for_grpc_error(exc)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to delete scan") from exc

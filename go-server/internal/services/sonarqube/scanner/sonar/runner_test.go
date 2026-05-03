@@ -8,7 +8,7 @@ import (
 )
 
 func TestScannerArgs(t *testing.T) {
-	got := scannerArgs("/tmp/repo", "project-1", "main", "http://localhost:9000", "token-1", true, "4096")
+	got := scannerArgs("/tmp/repo", "project-1", "main", "http://localhost:9000", "token-1", true, "4096", nil)
 	want := []string{
 		"-Dsonar.projectKey=project-1",
 		"-Dsonar.projectBaseDir=/tmp/repo",
@@ -26,7 +26,7 @@ func TestScannerArgs(t *testing.T) {
 }
 
 func TestScannerArgsWithoutBranch(t *testing.T) {
-	got := scannerArgs("/tmp/repo", "project-1", "main", "http://localhost:9000", "token-1", false, "4096")
+	got := scannerArgs("/tmp/repo", "project-1", "main", "http://localhost:9000", "token-1", false, "4096", nil)
 	want := []string{
 		"-Dsonar.projectKey=project-1",
 		"-Dsonar.projectBaseDir=/tmp/repo",
@@ -35,6 +35,38 @@ func TestScannerArgsWithoutBranch(t *testing.T) {
 		"-Dsonar.host.url=http://localhost:9000",
 		"-Dsonar.token=token-1",
 		"-Dsonar.javascript.node.maxspace=4096",
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("scannerArgs() = %#v, want %#v", got, want)
+	}
+}
+
+func TestScannerArgsWithExtraProperties(t *testing.T) {
+	got := scannerArgs(
+		"/tmp/repo",
+		"project-1",
+		"main",
+		"http://localhost:9000",
+		"token-1",
+		true,
+		"4096",
+		map[string]string{
+			"sonar.java.binaries": "target/classes,module-a/target/classes",
+			"sonar.foo":           "bar",
+		},
+	)
+	want := []string{
+		"-Dsonar.projectKey=project-1",
+		"-Dsonar.projectBaseDir=/tmp/repo",
+		"-Dsonar.sources=/tmp/repo",
+		"-Dsonar.working.directory=.scannerwork",
+		"-Dsonar.host.url=http://localhost:9000",
+		"-Dsonar.token=token-1",
+		"-Dsonar.branch.name=main",
+		"-Dsonar.javascript.node.maxspace=4096",
+		"-Dsonar.foo=bar",
+		"-Dsonar.java.binaries=target/classes,module-a/target/classes",
 	}
 
 	if !reflect.DeepEqual(got, want) {

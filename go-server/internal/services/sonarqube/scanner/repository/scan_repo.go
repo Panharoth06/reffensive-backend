@@ -220,6 +220,14 @@ func (r *ScanRepository) RawByUUID(ctx context.Context, id uuid.UUID) (db.Scan, 
 	return r.queries.GetUnifiedScan(ctx, id)
 }
 
+func (r *ScanRepository) Delete(ctx context.Context, id string) (int64, error) {
+	scanID, err := uuid.Parse(id)
+	if err != nil {
+		return 0, err
+	}
+	return r.queries.DeleteUnifiedScan(ctx, scanID)
+}
+
 func scanFromDB(scan db.Scan) *Scan {
 	result := &Scan{
 		ID:               scan.ID.String(),

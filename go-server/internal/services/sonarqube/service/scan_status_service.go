@@ -33,6 +33,9 @@ func (s *ScannerServer) StreamScanStatus(req *pb.ScanStatusRequest, stream pb.So
 	if err != nil {
 		return status.Errorf(codes.InvalidArgument, "invalid scan_id: %v", err)
 	}
+	if _, err := s.getScan(stream.Context(), req.GetScanId()); err != nil {
+		return err
+	}
 
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
@@ -61,12 +64,19 @@ func (s *ScannerServer) getScan(ctx context.Context, rawID string) (db.Scan, err
 	if err != nil {
 		return db.Scan{}, err
 	}
+	userID, err := requireCurrentUserUUID(ctx)
+	if err != nil {
+		return db.Scan{}, err
+	}
 	scan, err := s.scanRepo.RawByUUID(ctx, scanID)
 	if err != nil {
 		if repository.IsNotFound(err) || errors.Is(err, pgx.ErrNoRows) {
 			return db.Scan{}, status.Error(codes.NotFound, "scan not found")
 		}
 		return db.Scan{}, status.Errorf(codes.Internal, "read scan: %v", err)
+	}
+	if scan.UserID != userID {
+		return db.Scan{}, status.Error(codes.NotFound, "scan not found")
 	}
 	return scan, nil
 }
@@ -183,6 +193,8 @@ func scanStatus(value string) pb.ScanStatus {
 		return pb.ScanStatus_SCAN_STATUS_FAILED
 	case scanStatusPartial:
 		return pb.ScanStatus_SCAN_STATUS_PARTIAL
+	case scanStatusCancelled:
+		return pb.ScanStatus_SCAN_STATUS_CANCELLED
 	default:
 		return pb.ScanStatus_SCAN_STATUS_UNSPECIFIED
 	}
@@ -190,7 +202,7 @@ func scanStatus(value string) pb.ScanStatus {
 
 func isTerminalStatus(value string) bool {
 	switch strings.ToUpper(strings.TrimSpace(value)) {
-	case scanStatusSuccess, scanStatusFailed, scanStatusPartial:
+	case scanStatusSuccess, scanStatusFailed, scanStatusPartial, scanStatusCancelled:
 		return true
 	default:
 		return false

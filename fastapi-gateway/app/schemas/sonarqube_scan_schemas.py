@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
-ScanStatusLiteral = Literal["PENDING", "IN_PROGRESS", "SUCCESS", "FAILED", "PARTIAL"]
+ScanStatusLiteral = Literal["PENDING", "IN_PROGRESS", "SUCCESS", "FAILED", "PARTIAL", "CANCELLED"]
 QualityGateLiteral = Literal["OK", "WARN", "ERROR"]
 
 
@@ -36,6 +36,39 @@ class ScanStatusResponse(BaseModel):
     finished_at: datetime | None = None
     error_message: str = ""
     phases: list[ScanPhaseResponse] = []
+
+
+class ScanDetailResponse(BaseModel):
+    scan_id: str
+    project_key: str
+    sonar_project_key: str = ""
+    repo_url: str = ""
+    branch: str = ""
+    status: ScanStatusLiteral
+    progress: int
+    created_at: datetime | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    error_message: str = ""
+    phases: list[ScanPhaseResponse] = []
+
+
+class StopScanResponse(BaseModel):
+    scan_id: str
+    status: ScanStatusLiteral
+    message: str = ""
+
+
+class RetryScanResponse(BaseModel):
+    source_scan_id: str
+    scan_id: str
+    status: ScanStatusLiteral
+    created_at: datetime | None = None
+
+
+class DeleteScanResponse(BaseModel):
+    scan_id: str
+    deleted: bool
 
 
 class ScanLogChunkResponse(BaseModel):
