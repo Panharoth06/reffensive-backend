@@ -264,6 +264,8 @@ fi
 REMOTE
 
                         # Deploy each service
+                        GO_SERVER_IMAGE_REF="$DOCKER_USER/$GO_SERVER_IMAGE_NAME:$TAG"
+                        FASTAPI_GATEWAY_IMAGE_REF="$DOCKER_USER/$FASTAPI_GATEWAY_IMAGE_NAME:$TAG"
                         for i in "${!NAMES[@]}"; do
                             IMAGE_REF="$DOCKER_USER/${IMAGES[$i]}:$TAG"
                             SERVICE="${NAMES[$i]}"
@@ -271,13 +273,16 @@ REMOTE
                                 -o StrictHostKeyChecking=no \
                                 -o BatchMode=yes \
                                 "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST" bash -s \
-                                    "$IMAGE_REF" "$SERVICE" "$DEPLOY_DIR" "$DOCKER_USER" "$TAG" <<'REMOTE'
+                                    "$IMAGE_REF" "$SERVICE" "$DEPLOY_DIR" "$DOCKER_USER" "$TAG" \
+                                    "$GO_SERVER_IMAGE_REF" "$FASTAPI_GATEWAY_IMAGE_REF" <<'REMOTE'
 set -eu
 IMAGE_REF="$1"
 SERVICE="$2"
 DEPLOY_DIR="$3"
 export DOCKER_USER="$4"
 TAG="$5"
+export GO_SERVER_IMAGE="$6"
+export FASTAPI_GATEWAY_IMAGE="$7"
 cd "$DEPLOY_DIR"
 
 # Pull only this specific service's image
