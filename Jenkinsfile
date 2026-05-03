@@ -230,6 +230,39 @@ REMOTE
                                 "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST:$DEPLOY_DIR/docker-compose.production.yml"
                         fi
 
+                        # Sync runtime env files when they are available in the Jenkins workspace.
+                        # These files are gitignored, so a missing local file should produce a clear
+                        # failure instead of letting docker compose fail later with a path error.
+                        for ENV_PATH in "go-server/.env" "fastapi-gateway/.env"; do
+                            if [ -f "$ENV_PATH" ]; then
+                                echo "▶ Uploading $ENV_PATH to remote deployment directory"
+                                scp -i "$DEPLOYMENT_KEY" \
+                                    -o StrictHostKeyChecking=no \
+                                    "$ENV_PATH" \
+                                    "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST:$DEPLOY_DIR/$ENV_PATH"
+                            fi
+                        done
+
+                        ssh -i "$DEPLOYMENT_KEY" \
+                            -o StrictHostKeyChecking=no \
+                            -o BatchMode=yes \
+                            "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST" bash -s "$DEPLOY_DIR" <<'REMOTE'
+set -eu
+DEPLOY_DIR="$1"
+missing_files=""
+for env_path in "go-server/.env" "fastapi-gateway/.env"; do
+    if [ ! -f "$DEPLOY_DIR/$env_path" ]; then
+        missing_files="${missing_files}\n- $DEPLOY_DIR/$env_path"
+    fi
+done
+
+if [ -n "$missing_files" ]; then
+    printf 'Missing required production env files:%b\n' "$missing_files" >&2
+    echo "Upload them to the deployment host or make them available in the Jenkins workspace before deploy." >&2
+    exit 1
+fi
+REMOTE
+
                         # Deploy each service
                         for i in "${!NAMES[@]}"; do
                             IMAGE_REF="$DOCKER_USER/${IMAGES[$i]}:$TAG"
