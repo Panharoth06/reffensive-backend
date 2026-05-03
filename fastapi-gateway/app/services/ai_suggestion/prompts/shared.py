@@ -20,6 +20,52 @@ def trim_list(items: list[Any], *, limit: int) -> list[Any]:
     return list(items[:limit]) if items else []
 
 
+def trim_text(value: Any, *, max_chars: int) -> str:
+    text = " ".join(str(value).split())
+    if len(text) <= max_chars:
+        return text
+    return text[: max_chars - 3].rstrip() + "..."
+
+
+def compact_value(
+    value: Any,
+    *,
+    max_depth: int = 2,
+    max_items: int = 6,
+    max_string: int = 180,
+) -> Any:
+    if value in (None, "", [], {}, ()):
+        return value
+    if isinstance(value, str):
+        return trim_text(value, max_chars=max_string)
+    if isinstance(value, bool | int | float):
+        return value
+    if max_depth <= 0:
+        return trim_text(json.dumps(value, ensure_ascii=True, default=str), max_chars=max_string)
+    if isinstance(value, dict):
+        compacted: dict[str, Any] = {}
+        items = list(value.items())
+        for key, item in items[:max_items]:
+            reduced = compact_value(item, max_depth=max_depth - 1, max_items=max_items, max_string=max_string)
+            if reduced not in (None, "", [], {}, ()):
+                compacted[str(key)] = reduced
+        if len(items) > max_items:
+            compacted["_truncated_items"] = len(items) - max_items
+        return compacted
+    if isinstance(value, (list, tuple, set)):
+        values = list(value)
+        compacted_items = [
+            reduced
+            for item in values[:max_items]
+            if (reduced := compact_value(item, max_depth=max_depth - 1, max_items=max_items, max_string=max_string))
+            not in (None, "", [], {}, ())
+        ]
+        if len(values) > max_items:
+            compacted_items.append({"_truncated_items": len(values) - max_items})
+        return compacted_items
+    return trim_text(repr(value), max_chars=max_string)
+
+
 def json_block(value: dict[str, Any]) -> str:
     return json.dumps(value, indent=2, ensure_ascii=True, sort_keys=True)
 

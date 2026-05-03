@@ -22,17 +22,12 @@ def create_category(
 
 
 @router.get("", response_model=ListCategoriesResponse, summary="List all categories")
-def list_categories(
-    current_user: CurrentUser = Depends(require_web_admin),
-) -> ListCategoriesResponse:
+def list_categories() -> ListCategoriesResponse:
     return ListCategoriesResponse(categories=category_client.list_categories())
 
 
 @router.get("/{category_id}", response_model=CategoryResponse, summary="Get a category by ID")
-def get_category(
-    category_id: str,
-    current_user: CurrentUser = Depends(require_web_admin),
-) -> CategoryResponse:
+def get_category(category_id: str) -> CategoryResponse:
     return category_client.get_category(category_id)
 
 
@@ -51,3 +46,4 @@ def delete_category(
     current_user: CurrentUser = Depends(require_web_admin),
 ) -> dict:
     return category_client.delete_category(category_id)
+

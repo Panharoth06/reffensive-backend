@@ -116,7 +116,9 @@ pipeline {
             }
         }
 
+        // ─────────────────────────────────────────────
         stage('Validate') {
+        // ─────────────────────────────────────────────
             steps {
                 script {
                     def names = env.SERVICE_NAMES.split(',')
@@ -221,15 +223,11 @@ pipeline {
                 ]) {
                     sh '''#!/bin/bash
                         set -euo pipefail
+                        IFS=',' read -ra NAMES  <<< "$SERVICE_NAMES"
+                        IFS=',' read -ra IMAGES <<< "$SERVICE_IMAGES"
                         DEPLOY_DIR="/home/rattanakmony.pech.mit18/reffensive-api/production"
-                        GO_SERVER_IMAGE_REF="$DOCKER_USER/$GO_SERVER_IMAGE_NAME:$TAG"
-                        FASTAPI_GATEWAY_IMAGE_REF="$DOCKER_USER/$FASTAPI_GATEWAY_IMAGE_NAME:$TAG"
 
-                        if [ ! -f "docker-compose.production.yml" ]; then
-                            echo "docker-compose.production.yml is required for production deployment"
-                            exit 1
-                        fi
-
+                        # Ensure dir exists + snapshot state before touching anything
                         ssh -i "$DEPLOYMENT_KEY" \
                             -o StrictHostKeyChecking=no \
                             -o BatchMode=yes \
@@ -249,42 +247,44 @@ if [ -f docker-compose.production.yml ]; then
 fi
 REMOTE
 
-                        scp -i "$DEPLOYMENT_KEY" \
-                            -o StrictHostKeyChecking=no \
-                            docker-compose.production.yml \
-                            "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST:$DEPLOY_DIR/docker-compose.production.yml"
+                        # Push latest compose file to remote
+                        if [ -f "docker-compose.production.yml" ]; then
+                            scp -i "$DEPLOYMENT_KEY" \
+                                -o StrictHostKeyChecking=no \
+                                docker-compose.production.yml \
+                                "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST:$DEPLOY_DIR/docker-compose.production.yml"
+                        fi
 
-                        ssh -i "$DEPLOYMENT_KEY" \
-                            -o StrictHostKeyChecking=no \
-                            -o BatchMode=yes \
-                            "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST" bash -s \
-                            "$DEPLOY_DIR" \
-                            "$GO_SERVER_IMAGE_REF" \
-                            "$FASTAPI_GATEWAY_IMAGE_REF" \
-                            "$DEPLOY_SERVICES" <<'REMOTE'
-set -euo pipefail
-DEPLOY_DIR="$1"
-export GO_SERVER_IMAGE="$2"
-export FASTAPI_GATEWAY_IMAGE="$3"
-DEPLOY_SERVICES="$4"
+                        # Deploy each service
+                        for i in "${!NAMES[@]}"; do
+                            IMAGE_REF="$DOCKER_USER/${IMAGES[$i]}:$TAG"
+                            SERVICE="${NAMES[$i]}"
+                            ssh -i "$DEPLOYMENT_KEY" \
+                                -o StrictHostKeyChecking=no \
+                                -o BatchMode=yes \
+                                "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST" bash -s \
+                                    "$IMAGE_REF" "$SERVICE" "$DEPLOY_DIR" "$DOCKER_USER" "$TAG" <<'REMOTE'
+set -eu
+IMAGE_REF="$1"
+SERVICE="$2"
+DEPLOY_DIR="$3"
+export DOCKER_USER="$4"
+TAG="$5"
 cd "$DEPLOY_DIR"
 
-for env_file in go-server/.env fastapi-gateway/.env; do
-    if [ ! -f "$env_file" ]; then
-        echo "Missing required env file: $DEPLOY_DIR/$env_file"
-        exit 1
-    fi
-done
+# Pull only this specific service's image
+docker pull "$IMAGE_REF"
 
-docker pull "$GO_SERVER_IMAGE"
-docker pull "$FASTAPI_GATEWAY_IMAGE"
+# Deploy only this service without checking/pulling dependencies
+# --no-deps prevents Docker Compose from pulling images for other services
+docker compose -f docker-compose.production.yml up -d \
+    --force-recreate \
+    --no-deps \
+    "$SERVICE"
 
-docker compose -f docker-compose.production.yml config >/dev/null
-
-IFS=',' read -ra SERVICES <<< "$DEPLOY_SERVICES"
-docker compose -f docker-compose.production.yml up -d --force-recreate --no-build "${SERVICES[@]}"
-echo "✓ Deployed services: ${SERVICES[*]}"
+echo "✓ Deployed: $SERVICE → $IMAGE_REF"
 REMOTE
+                        done
                     '''
                 }
             }

@@ -18,8 +18,12 @@ type AIContextInput struct {
 	Status         string           `json:"status"`
 	Target         AITargetContext  `json:"target"`
 	SeverityCounts map[string]int   `json:"severity_counts"`
+	Hosts          []string         `json:"hosts,omitempty"`
+	Ports          []int            `json:"ports,omitempty"`
+	TopFindings    []AIFindingInput `json:"top_findings,omitempty"`
 	Findings       []AIFindingInput `json:"findings"`
 	Results        []AIResultInput  `json:"results"`
+	Metadata       map[string]any   `json:"metadata,omitempty"`
 }
 
 type AITargetContext struct {
@@ -90,19 +94,38 @@ func (b *aiContextBuilder) Build(ctx context.Context, jobUUID uuid.UUID) (AICont
 
 	toolNames := make(map[uuid.UUID]string)
 	severityCounts := make(map[string]int)
+	hostSeen := make(map[string]struct{})
+	hosts := make([]string, 0, 8)
+	portSeen := make(map[int]struct{})
+	ports := make([]int, 0, 8)
 	findings := make([]AIFindingInput, 0, len(findingsRows))
 	for _, row := range findingsRows {
 		severity := normalizeSeverity(row.Severity)
 		severityCounts[severity]++
 
+		host := strings.TrimSpace(row.Host.String)
+		port := nullPortToInt(row.Port)
 		findings = append(findings, AIFindingInput{
 			Title:       strings.TrimSpace(row.Title.String),
 			Severity:    severity,
-			Host:        strings.TrimSpace(row.Host.String),
-			Port:        nullPortToInt(row.Port),
+			Host:        host,
+			Port:        port,
 			Fingerprint: strings.TrimSpace(row.Fingerprint.String),
 			ToolName:    b.toolName(ctx, toolNames, row.ToolID),
 		})
+
+		if host != "" {
+			if _, exists := hostSeen[host]; !exists {
+				hostSeen[host] = struct{}{}
+				hosts = append(hosts, host)
+			}
+		}
+		if port > 0 {
+			if _, exists := portSeen[port]; !exists {
+				portSeen[port] = struct{}{}
+				ports = append(ports, port)
+			}
+		}
 	}
 
 	sort.SliceStable(findings, func(i, j int) bool {
@@ -130,8 +153,15 @@ func (b *aiContextBuilder) Build(ctx context.Context, jobUUID uuid.UUID) (AICont
 			Description: strings.TrimSpace(targetRow.Description.String),
 		},
 		SeverityCounts: severityCounts,
+		Hosts:          hosts,
+		Ports:          ports,
+		TopFindings:    topFindings(findings, 5),
 		Findings:       findings,
 		Results:        results,
+		Metadata: map[string]any{
+			"total_findings": len(findings),
+			"total_results":  len(results),
+		},
 	}, nil
 }
 
@@ -173,4 +203,14 @@ func nullPortToInt(value pgtype.Int4) int {
 		return 0
 	}
 	return int(value.Int32)
+}
+
+func topFindings(findings []AIFindingInput, limit int) []AIFindingInput {
+	if limit <= 0 || len(findings) == 0 {
+		return nil
+	}
+	if len(findings) <= limit {
+		return append([]AIFindingInput(nil), findings...)
+	}
+	return append([]AIFindingInput(nil), findings[:limit]...)
 }

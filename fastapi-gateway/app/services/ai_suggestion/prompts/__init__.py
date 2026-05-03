@@ -25,7 +25,7 @@ def build_prompt_bundle(mode: SuggestionMode, context: dict[str, Any]) -> Prompt
     )
 
 
-def normalize_output(mode: SuggestionMode, text: str) -> dict[str, Any]:
+def normalize_output(mode: SuggestionMode, text: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
     if mode != "next_steps":
         raise ValueError(f"unsupported suggestion mode: {mode}")
-    return next_steps.normalize_output(text)
+    return next_steps.normalize_output(text, context)

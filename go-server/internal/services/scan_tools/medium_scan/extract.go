@@ -20,8 +20,16 @@ func ExtractMediumOptions(cfg ToolConfig) (ExtractedOptions, error) {
 		if !isSupportedType(opt.Type) {
 			return ExtractedOptions{}, fmt.Errorf("medium option %q has unsupported type %q", opt.Key, opt.Type)
 		}
-		if _, exists := result.ByKey[opt.Key]; exists {
-			return ExtractedOptions{}, fmt.Errorf("duplicate medium option key %q", opt.Key)
+		if prev, exists := result.ByKey[opt.Key]; exists {
+			// Tools sometimes end up with duplicated option definitions in persisted config.
+			// If the duplicates are identical, treat them as benign and keep the first.
+			if prev.Flag == opt.Flag && prev.Type == opt.Type {
+				continue
+			}
+			return ExtractedOptions{}, fmt.Errorf(
+				"duplicate medium option key %q with different definitions (existing flag=%q type=%q, duplicate flag=%q type=%q)",
+				opt.Key, prev.Flag, prev.Type, opt.Flag, opt.Type,
+			)
 		}
 
 		result.ByKey[opt.Key] = opt
