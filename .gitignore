@@ -10,7 +10,7 @@ fastapi-gateway/.env
 fastapi-gateway/__pycache__/
 fastapi-gateway/.env.prod
 fastapi-gateway/.env.prod
-fastapi-gateway/app/gen/*
+fastapi-gateway/app/gen/*_pb2_grpc
 __pycache__/
 *.py[cod]
 
