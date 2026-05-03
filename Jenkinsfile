@@ -243,6 +243,26 @@ REMOTE
                             fi
                         done
 
+                        GO_SERVER_IMAGE_REF="$DOCKER_USER/$GO_SERVER_IMAGE_NAME:$TAG"
+                        FASTAPI_GATEWAY_IMAGE_REF="$DOCKER_USER/$FASTAPI_GATEWAY_IMAGE_NAME:$TAG"
+
+                        # Persist compose interpolation variables on the remote host so manual
+                        # docker compose commands (ps/logs/restart) work outside Jenkins too.
+                        ssh -i "$DEPLOYMENT_KEY" \
+                            -o StrictHostKeyChecking=no \
+                            -o BatchMode=yes \
+                            "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST" bash -s \
+                            "$DEPLOY_DIR" "$GO_SERVER_IMAGE_REF" "$FASTAPI_GATEWAY_IMAGE_REF" <<'REMOTE'
+set -eu
+DEPLOY_DIR="$1"
+GO_SERVER_IMAGE_REF="$2"
+FASTAPI_GATEWAY_IMAGE_REF="$3"
+cat > "$DEPLOY_DIR/.env" <<EOF
+GO_SERVER_IMAGE=$GO_SERVER_IMAGE_REF
+FASTAPI_GATEWAY_IMAGE=$FASTAPI_GATEWAY_IMAGE_REF
+EOF
+REMOTE
+
                         ssh -i "$DEPLOYMENT_KEY" \
                             -o StrictHostKeyChecking=no \
                             -o BatchMode=yes \
@@ -264,8 +284,6 @@ fi
 REMOTE
 
                         # Deploy each service
-                        GO_SERVER_IMAGE_REF="$DOCKER_USER/$GO_SERVER_IMAGE_NAME:$TAG"
-                        FASTAPI_GATEWAY_IMAGE_REF="$DOCKER_USER/$FASTAPI_GATEWAY_IMAGE_NAME:$TAG"
                         for i in "${!NAMES[@]}"; do
                             IMAGE_REF="$DOCKER_USER/${IMAGES[$i]}:$TAG"
                             SERVICE="${NAMES[$i]}"
