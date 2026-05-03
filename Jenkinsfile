@@ -40,28 +40,18 @@ pipeline {
 
                     def allTargets = [
                         'go-server': [
-                            paths:     ['go-server/'],
-                            dockerfile: 'go-server/Dockerfile',
-                            context:   '.',
-                            imageName: 'autooffensive-go-server'
+                            paths:          ['go-server/', 'proto/', 'Makefile'],
+                            dockerfile:     'go-server/Dockerfile',
+                            context:        '.',
+                            imageName:      'autooffensive-go-server',
+                            deployServices: ['go-server', 'sonarqube-worker']
                         ],
                         'fastapi-gateway': [
-                            paths:     ['fastapi-gateway/'],
+                            paths:          ['fastapi-gateway/', 'proto/'],
                             dockerfile: 'fastapi-gateway/Dockerfile',
                             context:   '.',
-                            imageName: 'autooffensive-fastapi-gateway'
-                        ],
-                        'worker-builder': [
-                            paths:     ['workers/builder/'],
-                            dockerfile: 'workers/builder/Dockerfile',
-                            context:   '.',
-                            imageName: 'autooffensive-worker-builder'
-                        ],
-                        'worker-scanner': [
-                            paths:     ['workers/scanner/'],
-                            dockerfile: 'workers/scanner/Dockerfile',
-                            context:   '.',
-                            imageName: 'autooffensive-worker-scanner'
+                            imageName: 'autooffensive-fastapi-gateway',
+                            deployServices: ['fastapi-gateway']
                         ]
                     ]
 
@@ -73,7 +63,11 @@ pipeline {
                         returnStdout: true
                     ).trim().split('\n') as List
 
-                    echo "Changed files: ${changedFiles.join(', ')}"
+                    if (changedFiles.size() == 1 && changedFiles[0] == '') {
+                        changedFiles = []
+                    }
+
+                    echo "Changed files: ${changedFiles ? changedFiles.join(', ') : '(none detected)'}"
 
                     def servicesToBuild = []
                     allTargets.each { serviceName, config ->
@@ -86,19 +80,38 @@ pipeline {
                     }
 
                     def jenkinsfileChanged = changedFiles.any { it == 'Jenkinsfile' }
-                    if (servicesToBuild.isEmpty() || jenkinsfileChanged) {
+                    def composeChanged = changedFiles.any { it in ['docker-compose.yml', 'docker-compose.production.yml'] }
+                    if (servicesToBuild.isEmpty() || jenkinsfileChanged || composeChanged) {
                         echo "No specific service changes detected — building all services."
-                        servicesToBuild = allTargets.collect { k, v -> [name: k] + v }
+                    } else {
+                        echo "Compose deployment uses one commit tag across the stack; rebuilding all deployable services."
+                    }
+                    servicesToBuild = allTargets.collect { k, v -> [name: k] + v }
+
+                    if (params.IMAGE_NAME?.trim() && servicesToBuild.size() > 1) {
+                        error("IMAGE_NAME can only override a single target build. Leave it blank or limit this run to one target.")
                     }
 
                     echo "Services to build: ${servicesToBuild.collect { it.name }.join(', ')}"
 
+                    def imageNamesByTarget = [:]
+                    servicesToBuild.each { service ->
+                        imageNamesByTarget[service.name] = params.IMAGE_NAME?.trim()
+                            ? params.IMAGE_NAME.trim()
+                            : service.imageName
+                    }
+
+                    def deployServices = servicesToBuild
+                        .collectMany { it.deployServices }
+                        .unique()
+
                     env.SERVICE_NAMES       = servicesToBuild.collect { it.name }.join(',')
                     env.SERVICE_DOCKERFILES = servicesToBuild.collect { it.dockerfile }.join(',')
                     env.SERVICE_CONTEXTS    = servicesToBuild.collect { it.context }.join(',')
-                    env.SERVICE_IMAGES      = servicesToBuild.collect { s ->
-                        params.IMAGE_NAME?.trim() ? params.IMAGE_NAME.trim() : s.imageName
-                    }.join(',')
+                    env.SERVICE_IMAGES      = servicesToBuild.collect { s -> imageNamesByTarget[s.name] }.join(',')
+                    env.DEPLOY_SERVICES     = deployServices.join(',')
+                    env.GO_SERVER_IMAGE_NAME = imageNamesByTarget['go-server'] ?: allTargets['go-server'].imageName
+                    env.FASTAPI_GATEWAY_IMAGE_NAME = imageNamesByTarget['fastapi-gateway'] ?: allTargets['fastapi-gateway'].imageName
                 }
             }
         }
@@ -113,7 +126,6 @@ pipeline {
                         } else if (service == 'fastapi-gateway') {
                             echo "FastAPI validation skipped — compiled inside Docker with correct toolchain"
                         }
-                        // worker-builder, worker-scanner later
                     }
                 }
             }
@@ -196,71 +208,87 @@ pipeline {
             }
         }
 
-    // ─────────────────────────────────────────────
-    stage('Deploy to Production') {
-    // ─────────────────────────────────────────────
-        steps {
-            withCredentials([
-                usernamePassword(
-                    credentialsId: env.DOCKER_CREDENTIALS_ID,
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )
-            ]) {
-                sh '''#!/bin/bash
-                    set -euo pipefail
-                    IFS=',' read -ra NAMES  <<< "$SERVICE_NAMES"
-                    IFS=',' read -ra IMAGES <<< "$SERVICE_IMAGES"
-                    DEPLOY_DIR="/home/rattanakmony.pech.mit18/reffensive-api/production"
+        // ─────────────────────────────────────────────
+        stage('Deploy to Production') {
+        // ─────────────────────────────────────────────
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: env.DOCKER_CREDENTIALS_ID,
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+                    sh '''#!/bin/bash
+                        set -euo pipefail
+                        DEPLOY_DIR="/home/rattanakmony.pech.mit18/reffensive-api/production"
+                        GO_SERVER_IMAGE_REF="$DOCKER_USER/$GO_SERVER_IMAGE_NAME:$TAG"
+                        FASTAPI_GATEWAY_IMAGE_REF="$DOCKER_USER/$FASTAPI_GATEWAY_IMAGE_NAME:$TAG"
 
-                    # Ensure dir exists + snapshot state before touching anything
-                    ssh -i "$DEPLOYMENT_KEY" \
-                        -o StrictHostKeyChecking=no \
-                        -o BatchMode=yes \
-                        "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST" bash -s "$DEPLOY_DIR" <<'REMOTE'
+                        if [ ! -f "docker-compose.production.yml" ]; then
+                            echo "docker-compose.production.yml is required for production deployment"
+                            exit 1
+                        fi
+
+                        ssh -i "$DEPLOYMENT_KEY" \
+                            -o StrictHostKeyChecking=no \
+                            -o BatchMode=yes \
+                            "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST" bash -s "$DEPLOY_DIR" <<'REMOTE'
 set -eu
 DEPLOY_DIR="$1"
-mkdir -p "$DEPLOY_DIR"
+mkdir -p "$DEPLOY_DIR/go-server" "$DEPLOY_DIR/fastapi-gateway"
 cd "$DEPLOY_DIR"
 if [ -f docker-compose.production.yml ]; then
-    docker compose -f docker-compose.production.yml config \
-        > "deployment-backup-$(date +%s).yml" 2>/dev/null || true
+    CURRENT_GO_SERVER_IMAGE=$(docker ps --filter "label=com.docker.compose.service=go-server" --format '{{.Image}}' | head -n 1)
+    CURRENT_FASTAPI_GATEWAY_IMAGE=$(docker ps --filter "label=com.docker.compose.service=fastapi-gateway" --format '{{.Image}}' | head -n 1)
+    if [ -n "$CURRENT_GO_SERVER_IMAGE" ] && [ -n "$CURRENT_FASTAPI_GATEWAY_IMAGE" ]; then
+        GO_SERVER_IMAGE="$CURRENT_GO_SERVER_IMAGE" \
+        FASTAPI_GATEWAY_IMAGE="$CURRENT_FASTAPI_GATEWAY_IMAGE" \
+        docker compose -f docker-compose.production.yml config > "deployment-backup-$(date +%s).yml"
+    fi
 fi
 REMOTE
 
-                    # Push latest compose file to remote
-                    if [ -f "docker-compose.production.yml" ]; then
                         scp -i "$DEPLOYMENT_KEY" \
                             -o StrictHostKeyChecking=no \
                             docker-compose.production.yml \
                             "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST:$DEPLOY_DIR/docker-compose.production.yml"
-                    fi
 
-                    # Deploy each service
-                    for i in "${!NAMES[@]}"; do
-                        IMAGE_REF="$DOCKER_USER/${IMAGES[$i]}:$TAG"
-                        SERVICE="${NAMES[$i]}"
                         ssh -i "$DEPLOYMENT_KEY" \
                             -o StrictHostKeyChecking=no \
                             -o BatchMode=yes \
                             "$DEPLOYMENT_USER@$PRODUCTION_DEPLOYMENT_HOST" bash -s \
-                                "$IMAGE_REF" "$SERVICE" "$DEPLOY_DIR" "$DOCKER_USER" "$TAG" <<'REMOTE'
-set -eu
-IMAGE_REF="$1"
-SERVICE="$2"
-DEPLOY_DIR="$3"
-export DOCKER_USER="$4"
-export TAG="$5"
+                            "$DEPLOY_DIR" \
+                            "$GO_SERVER_IMAGE_REF" \
+                            "$FASTAPI_GATEWAY_IMAGE_REF" \
+                            "$DEPLOY_SERVICES" <<'REMOTE'
+set -euo pipefail
+DEPLOY_DIR="$1"
+export GO_SERVER_IMAGE="$2"
+export FASTAPI_GATEWAY_IMAGE="$3"
+DEPLOY_SERVICES="$4"
 cd "$DEPLOY_DIR"
-docker pull "$IMAGE_REF"
-docker compose -f docker-compose.production.yml up -d --force-recreate "$SERVICE"
-echo "✓ Deployed: $SERVICE → $IMAGE_REF"
+
+for env_file in go-server/.env fastapi-gateway/.env; do
+    if [ ! -f "$env_file" ]; then
+        echo "Missing required env file: $DEPLOY_DIR/$env_file"
+        exit 1
+    fi
+done
+
+docker pull "$GO_SERVER_IMAGE"
+docker pull "$FASTAPI_GATEWAY_IMAGE"
+
+docker compose -f docker-compose.production.yml config >/dev/null
+
+IFS=',' read -ra SERVICES <<< "$DEPLOY_SERVICES"
+docker compose -f docker-compose.production.yml up -d --force-recreate --no-build "${SERVICES[@]}"
+echo "✓ Deployed services: ${SERVICES[*]}"
 REMOTE
-                    done
-            '''
+                    '''
+                }
+            }
         }
-    }
-}
 
         // ─────────────────────────────────────────────
         stage('Health Check') {
