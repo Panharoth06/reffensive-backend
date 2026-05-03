@@ -7,7 +7,6 @@ from fastapi.responses import JSONResponse
 from app.routers import tool_router, category_router, project_router, apikey_router, ai_suggestion_router
 from app.routers.auth import router as auth_router
 from app.routers.integrations_git_account import router as integrations_router
-from app.routers.git_repositories import router as git_repositories_router
 from app.routers.scanner import router as scanner_router
 from app.routers.users import router as users_router
 from app.routers.advanced_scan_router import router as advanced_scan_router
@@ -144,7 +143,6 @@ app.include_router(integrations_router)
 app.include_router(ai_suggestion_router.router)
 app.include_router(ai_suggestion_router.legacy_router)
 app.include_router(ai_suggestion_router.internal_router, include_in_schema=False)
-app.include_router(git_repositories_router)
 app.include_router(scanner_router)
 
 @app.get("/health", tags=["Health"])

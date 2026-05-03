@@ -38,8 +38,13 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/auth/me",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "me"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
             },
             "header": [
               {
@@ -61,8 +66,12 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/users",
-              "host": ["{{baseUrl}}"],
-              "path": ["users"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
             },
             "header": [
               {
@@ -79,8 +88,12 @@
             "method": "POST",
             "url": {
               "raw": "{{baseUrl}}/users",
-              "host": ["{{baseUrl}}"],
-              "path": ["users"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users"
+              ]
             },
             "header": [
               {
@@ -113,8 +126,13 @@
             "method": "DELETE",
             "url": {
               "raw": "{{baseUrl}}/users/{user_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["users", "{user_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{user_id}"
+              ]
             },
             "header": [
               {
@@ -131,8 +149,13 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/users/{user_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["users", "{user_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{user_id}"
+              ]
             },
             "header": [
               {
@@ -149,8 +172,13 @@
             "method": "PATCH",
             "url": {
               "raw": "{{baseUrl}}/users/{user_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["users", "{user_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{user_id}"
+              ]
             },
             "header": [
               {
@@ -185,8 +213,12 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/projects",
-              "host": ["{{baseUrl}}"],
-              "path": ["projects"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects"
+              ]
             },
             "header": [
               {
@@ -203,8 +235,12 @@
             "method": "POST",
             "url": {
               "raw": "{{baseUrl}}/projects",
-              "host": ["{{baseUrl}}"],
-              "path": ["projects"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects"
+              ]
             },
             "header": [
               {
@@ -234,8 +270,13 @@
             "method": "DELETE",
             "url": {
               "raw": "{{baseUrl}}/projects/{project_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["projects", "{project_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{project_id}"
+              ]
             },
             "header": [
               {
@@ -252,8 +293,13 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/projects/{project_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["projects", "{project_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{project_id}"
+              ]
             },
             "header": [
               {
@@ -270,8 +316,13 @@
             "method": "PATCH",
             "url": {
               "raw": "{{baseUrl}}/projects/{project_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["projects", "{project_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "projects",
+                "{project_id}"
+              ]
             },
             "header": [
               {
@@ -306,8 +357,12 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/tools",
-              "host": ["{{baseUrl}}"],
-              "path": ["tools"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tools"
+              ]
             },
             "header": [
               {
@@ -324,8 +379,12 @@
             "method": "POST",
             "url": {
               "raw": "{{baseUrl}}/tools",
-              "host": ["{{baseUrl}}"],
-              "path": ["tools"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tools"
+              ]
             },
             "header": [
               {
@@ -355,8 +414,13 @@
             "method": "DELETE",
             "url": {
               "raw": "{{baseUrl}}/tools/{tool_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["tools", "{tool_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tools",
+                "{tool_id}"
+              ]
             },
             "header": [
               {
@@ -373,8 +437,13 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/tools/{tool_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["tools", "{tool_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tools",
+                "{tool_id}"
+              ]
             },
             "header": [
               {
@@ -386,13 +455,18 @@
           "response": []
         },
         {
-          "name": "Update a tool (partial — omit fields to keep existing)",
+          "name": "Update a tool (partial \u2014 omit fields to keep existing)",
           "request": {
             "method": "PUT",
             "url": {
               "raw": "{{baseUrl}}/tools/{tool_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["tools", "{tool_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tools",
+                "{tool_id}"
+              ]
             },
             "header": [
               {
@@ -422,8 +496,14 @@
             "method": "PATCH",
             "url": {
               "raw": "{{baseUrl}}/tools/{tool_id}/activate",
-              "host": ["{{baseUrl}}"],
-              "path": ["tools", "{tool_id}", "activate"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "tools",
+                "{tool_id}",
+                "activate"
+              ]
             },
             "header": [
               {
@@ -445,8 +525,12 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/categories",
-              "host": ["{{baseUrl}}"],
-              "path": ["categories"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories"
+              ]
             },
             "header": [
               {
@@ -463,8 +547,12 @@
             "method": "POST",
             "url": {
               "raw": "{{baseUrl}}/categories",
-              "host": ["{{baseUrl}}"],
-              "path": ["categories"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories"
+              ]
             },
             "header": [
               {
@@ -494,8 +582,13 @@
             "method": "DELETE",
             "url": {
               "raw": "{{baseUrl}}/categories/{category_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["categories", "{category_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories",
+                "{category_id}"
+              ]
             },
             "header": [
               {
@@ -512,8 +605,13 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/categories/{category_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["categories", "{category_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories",
+                "{category_id}"
+              ]
             },
             "header": [
               {
@@ -530,8 +628,13 @@
             "method": "PUT",
             "url": {
               "raw": "{{baseUrl}}/categories/{category_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["categories", "{category_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories",
+                "{category_id}"
+              ]
             },
             "header": [
               {
@@ -566,8 +669,15 @@
             "method": "POST",
             "url": {
               "raw": "{{baseUrl}}/api/v1/apikeys/create",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "apikeys", "create"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "apikeys",
+                "create"
+              ]
             },
             "header": [
               {
@@ -597,8 +707,16 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/api/v1/apikeys/project/{project_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "apikeys", "project", "{project_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "apikeys",
+                "project",
+                "{project_id}"
+              ]
             },
             "header": [
               {
@@ -615,8 +733,15 @@
             "method": "POST",
             "url": {
               "raw": "{{baseUrl}}/api/v1/apikeys/validate",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "apikeys", "validate"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "apikeys",
+                "validate"
+              ]
             },
             "header": [
               {
@@ -646,8 +771,15 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/api/v1/apikeys/{key_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "apikeys", "{key_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "apikeys",
+                "{key_id}"
+              ]
             },
             "header": [
               {
@@ -664,8 +796,16 @@
             "method": "POST",
             "url": {
               "raw": "{{baseUrl}}/api/v1/apikeys/{key_id}/revoke",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "apikeys", "{key_id}", "revoke"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "apikeys",
+                "{key_id}",
+                "revoke"
+              ]
             },
             "header": [
               {
@@ -687,8 +827,15 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/advanced/jobs/{job_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "advanced", "jobs", "{job_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "advanced",
+                "jobs",
+                "{job_id}"
+              ]
             },
             "header": [
               {
@@ -705,8 +852,16 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/advanced/jobs/{job_id}/findings",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "advanced", "jobs", "{job_id}", "findings"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "advanced",
+                "jobs",
+                "{job_id}",
+                "findings"
+              ]
             },
             "header": [
               {
@@ -723,8 +878,16 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/advanced/jobs/{job_id}/parsed-data",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "advanced", "jobs", "{job_id}", "parsed-data"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "advanced",
+                "jobs",
+                "{job_id}",
+                "parsed-data"
+              ]
             },
             "header": [
               {
@@ -741,8 +904,16 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/advanced/jobs/{job_id}/summary",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "advanced", "jobs", "{job_id}", "summary"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "advanced",
+                "jobs",
+                "{job_id}",
+                "summary"
+              ]
             },
             "header": [
               {
@@ -759,7 +930,9 @@
             "method": "POST",
             "url": {
               "raw": "{{baseUrl}}/scans/advanced/queue/jobs/{job_id}/cancel",
-              "host": ["{{baseUrl}}"],
+              "host": [
+                "{{baseUrl}}"
+              ],
               "path": [
                 "scans",
                 "advanced",
@@ -784,7 +957,9 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/advanced/queue/jobs/{job_id}/position",
-              "host": ["{{baseUrl}}"],
+              "host": [
+                "{{baseUrl}}"
+              ],
               "path": [
                 "scans",
                 "advanced",
@@ -809,8 +984,15 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/advanced/queue/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "advanced", "queue", "status"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "advanced",
+                "queue",
+                "status"
+              ]
             },
             "header": [
               {
@@ -827,8 +1009,14 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/advanced/results",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "advanced", "results"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "advanced",
+                "results"
+              ]
             },
             "header": [
               {
@@ -845,8 +1033,15 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/advanced/steps/{step_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "advanced", "steps", "{step_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "advanced",
+                "steps",
+                "{step_id}"
+              ]
             },
             "header": [
               {
@@ -863,8 +1058,16 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/advanced/steps/{step_id}/findings",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "advanced", "steps", "{step_id}", "findings"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "advanced",
+                "steps",
+                "{step_id}",
+                "findings"
+              ]
             },
             "header": [
               {
@@ -881,7 +1084,9 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/advanced/steps/{step_id}/logs/stream",
-              "host": ["{{baseUrl}}"],
+              "host": [
+                "{{baseUrl}}"
+              ],
               "path": [
                 "scans",
                 "advanced",
@@ -906,8 +1111,16 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/advanced/steps/{step_id}/parsed-data",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "advanced", "steps", "{step_id}", "parsed-data"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "advanced",
+                "steps",
+                "{step_id}",
+                "parsed-data"
+              ]
             },
             "header": [
               {
@@ -924,8 +1137,16 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/advanced/steps/{step_id}/raw-output",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "advanced", "steps", "{step_id}", "raw-output"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "advanced",
+                "steps",
+                "{step_id}",
+                "raw-output"
+              ]
             },
             "header": [
               {
@@ -942,8 +1163,16 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/advanced/steps/{step_id}/summary",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "advanced", "steps", "{step_id}", "summary"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "advanced",
+                "steps",
+                "{step_id}",
+                "summary"
+              ]
             },
             "header": [
               {
@@ -960,8 +1189,14 @@
             "method": "POST",
             "url": {
               "raw": "{{baseUrl}}/scans/advanced/submit",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "advanced", "submit"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "advanced",
+                "submit"
+              ]
             },
             "header": [
               {
@@ -996,8 +1231,15 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/medium/jobs/{job_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "medium", "jobs", "{job_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "medium",
+                "jobs",
+                "{job_id}"
+              ]
             },
             "header": [
               {
@@ -1014,8 +1256,14 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/medium/results",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "medium", "results"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "medium",
+                "results"
+              ]
             },
             "header": [
               {
@@ -1032,8 +1280,15 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/medium/steps/{step_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "medium", "steps", "{step_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "medium",
+                "steps",
+                "{step_id}"
+              ]
             },
             "header": [
               {
@@ -1050,7 +1305,9 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/medium/steps/{step_id}/logs/stream",
-              "host": ["{{baseUrl}}"],
+              "host": [
+                "{{baseUrl}}"
+              ],
               "path": [
                 "scans",
                 "medium",
@@ -1075,8 +1332,14 @@
             "method": "POST",
             "url": {
               "raw": "{{baseUrl}}/scans/medium/submit",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "medium", "submit"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "medium",
+                "submit"
+              ]
             },
             "header": [
               {
@@ -1111,8 +1374,15 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/basic/jobs/{job_id}",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "basic", "jobs", "{job_id}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "basic",
+                "jobs",
+                "{job_id}"
+              ]
             },
             "header": [
               {
@@ -1129,8 +1399,16 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/basic/jobs/{job_id}/findings",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "basic", "jobs", "{job_id}", "findings"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "basic",
+                "jobs",
+                "{job_id}",
+                "findings"
+              ]
             },
             "header": [
               {
@@ -1147,8 +1425,16 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/basic/jobs/{job_id}/summary",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "basic", "jobs", "{job_id}", "summary"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "basic",
+                "jobs",
+                "{job_id}",
+                "summary"
+              ]
             },
             "header": [
               {
@@ -1165,8 +1451,14 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/scans/basic/results",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "basic", "results"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "basic",
+                "results"
+              ]
             },
             "header": [
               {
@@ -1183,8 +1475,14 @@
             "method": "POST",
             "url": {
               "raw": "{{baseUrl}}/scans/basic/submit",
-              "host": ["{{baseUrl}}"],
-              "path": ["scans", "basic", "submit"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "scans",
+                "basic",
+                "submit"
+              ]
             },
             "header": [
               {
@@ -1219,8 +1517,16 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/api/scanner/projects/{project_key}/scans",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "scanner", "projects", "{project_key}", "scans"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "scanner",
+                "projects",
+                "{project_key}",
+                "scans"
+              ]
             },
             "header": [
               {
@@ -1237,8 +1543,14 @@
             "method": "POST",
             "url": {
               "raw": "{{baseUrl}}/api/scanner/scans",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "scanner", "scans"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "scanner",
+                "scans"
+              ]
             },
             "header": [
               {
@@ -1268,8 +1580,16 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/api/scanner/scans/{scan_id}/dependencies",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "scanner", "scans", "{scan_id}", "dependencies"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "scanner",
+                "scans",
+                "{scan_id}",
+                "dependencies"
+              ]
             },
             "header": [
               {
@@ -1286,7 +1606,9 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/api/scanner/scans/{scan_id}/dependencies/summary",
-              "host": ["{{baseUrl}}"],
+              "host": [
+                "{{baseUrl}}"
+              ],
               "path": [
                 "api",
                 "scanner",
@@ -1311,7 +1633,9 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/api/scanner/scans/{scan_id}/files/{file_path}/issues",
-              "host": ["{{baseUrl}}"],
+              "host": [
+                "{{baseUrl}}"
+              ],
               "path": [
                 "api",
                 "scanner",
@@ -1337,8 +1661,16 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/api/scanner/scans/{scan_id}/issues",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "scanner", "scans", "{scan_id}", "issues"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "scanner",
+                "scans",
+                "{scan_id}",
+                "issues"
+              ]
             },
             "header": [
               {
@@ -1355,7 +1687,9 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/api/scanner/scans/{scan_id}/issues/{issue_key}",
-              "host": ["{{baseUrl}}"],
+              "host": [
+                "{{baseUrl}}"
+              ],
               "path": [
                 "api",
                 "scanner",
@@ -1380,8 +1714,16 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/api/scanner/scans/{scan_id}/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "scanner", "scans", "{scan_id}", "status"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "scanner",
+                "scans",
+                "{scan_id}",
+                "status"
+              ]
             },
             "header": [
               {
@@ -1398,8 +1740,16 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/api/scanner/scans/{scan_id}/stream",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "scanner", "scans", "{scan_id}", "stream"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "scanner",
+                "scans",
+                "{scan_id}",
+                "stream"
+              ]
             },
             "header": [
               {
@@ -1416,8 +1766,16 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/api/scanner/scans/{scan_id}/summary",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "scanner", "scans", "{scan_id}", "summary"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "scanner",
+                "scans",
+                "{scan_id}",
+                "summary"
+              ]
             },
             "header": [
               {
@@ -1439,8 +1797,13 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/integrations/accounts",
-              "host": ["{{baseUrl}}"],
-              "path": ["integrations", "accounts"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "integrations",
+                "accounts"
+              ]
             },
             "header": [
               {
@@ -1457,8 +1820,14 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/integrations/{provider}/accounts",
-              "host": ["{{baseUrl}}"],
-              "path": ["integrations", "{provider}", "accounts"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "integrations",
+                "{provider}",
+                "accounts"
+              ]
             },
             "header": [
               {
@@ -1475,8 +1844,14 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/integrations/{provider}/callback",
-              "host": ["{{baseUrl}}"],
-              "path": ["integrations", "{provider}", "callback"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "integrations",
+                "{provider}",
+                "callback"
+              ]
             },
             "header": [
               {
@@ -1493,8 +1868,14 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/integrations/{provider}/connect-url",
-              "host": ["{{baseUrl}}"],
-              "path": ["integrations", "{provider}", "connect-url"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "integrations",
+                "{provider}",
+                "connect-url"
+              ]
             },
             "header": [
               {
@@ -1511,8 +1892,14 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/integrations/{provider}/repositories",
-              "host": ["{{baseUrl}}"],
-              "path": ["integrations", "{provider}", "repositories"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "integrations",
+                "{provider}",
+                "repositories"
+              ]
             },
             "header": [
               {
@@ -1529,8 +1916,15 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/integrations/{provider}/repositories/branches",
-              "host": ["{{baseUrl}}"],
-              "path": ["integrations", "{provider}", "repositories", "branches"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "integrations",
+                "{provider}",
+                "repositories",
+                "branches"
+              ]
             },
             "header": [
               {
@@ -1552,8 +1946,12 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/health",
-              "host": ["{{baseUrl}}"],
-              "path": ["health"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
             },
             "header": [
               {
@@ -1564,96 +1962,6 @@
             "auth": {
               "type": "noauth"
             }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Git",
-      "item": [
-        {
-          "name": "Get Github Repositories",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/git/github/repositories",
-              "host": ["{{baseUrl}}"],
-              "path": ["git", "github", "repositories"]
-            },
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ]
-          },
-          "response": []
-        },
-        {
-          "name": "Get Github Branches",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/git/github/repositories/{owner}/{repo}/branches",
-              "host": ["{{baseUrl}}"],
-              "path": [
-                "git",
-                "github",
-                "repositories",
-                "{owner}",
-                "{repo}",
-                "branches"
-              ]
-            },
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ]
-          },
-          "response": []
-        },
-        {
-          "name": "Get Gitlab Repositories",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/git/gitlab/repositories",
-              "host": ["{{baseUrl}}"],
-              "path": ["git", "gitlab", "repositories"]
-            },
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ]
-          },
-          "response": []
-        },
-        {
-          "name": "Get Gitlab Branches",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{baseUrl}}/git/gitlab/repositories/{project_id}/branches",
-              "host": ["{{baseUrl}}"],
-              "path": [
-                "git",
-                "gitlab",
-                "repositories",
-                "{project_id}",
-                "branches"
-              ]
-            },
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ]
           },
           "response": []
         }
