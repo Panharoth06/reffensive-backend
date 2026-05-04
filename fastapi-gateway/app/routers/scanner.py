@@ -75,6 +75,77 @@ async def trigger_scan(
 
 
 @router.get(
+    "/scans/me",
+    response_model=ProjectScansResponse,
+    summary="List current user scans",
+)
+async def list_current_user_scans(
+    project_key: Optional[str] = Query(None, description="Optional project key filter"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
+    current_user: CurrentUser = Depends(require_scan_permission),
+) -> ProjectScansResponse:
+    """Get scans created by the current authenticated user."""
+    try:
+        return sonarqube_scan_client.list_user_scans(
+            project_key=project_key,
+            page=page,
+            page_size=page_size,
+            user_id=current_user.user_id,
+            api_key_id=current_user.api_key_id,
+            api_project_id=current_user.project_id,
+        )
+    except HTTPException:
+        raise
+    except grpc.RpcError as exc:
+        raise_for_grpc_error(exc)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to list current user scans") from exc
+
+
+@router.get(
+    "/scans/me/ids",
+    response_model=UserScanTaskRefsResponse,
+    summary="List current user scan IDs",
+)
+async def list_current_user_scan_ids(
+    project_key: Optional[str] = Query(None, description="Optional project key filter"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=500),
+    current_user: CurrentUser = Depends(require_scan_permission),
+) -> UserScanTaskRefsResponse:
+    """Get lightweight scan references for the current authenticated user."""
+    try:
+        response = sonarqube_scan_client.list_user_scans(
+            project_key=project_key,
+            page=page,
+            page_size=page_size,
+            user_id=current_user.user_id,
+            api_key_id=current_user.api_key_id,
+            api_project_id=current_user.project_id,
+        )
+    except HTTPException:
+        raise
+    except grpc.RpcError as exc:
+        raise_for_grpc_error(exc)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to list current user scan IDs") from exc
+
+    tasks = [
+        ScanTaskRefResponse(scan_id=item.scan_id, project_key=item.project_key)
+        for item in response.scans
+    ]
+    project_keys = sorted({item.project_key for item in tasks if item.project_key})
+    return UserScanTaskRefsResponse(
+        tasks=tasks,
+        project_keys=project_keys,
+        page=response.page,
+        page_size=response.page_size,
+        total=response.total,
+    )
+
+
+@router.get(
     "/scans/{scan_id}",
     response_model=ScanDetailResponse,
     summary="Get scan detail",
@@ -459,73 +530,6 @@ async def get_dependency_summary(
 # ============================================================================
 # Project History
 # ============================================================================
-
-
-@router.get(
-    "/scans/me",
-    response_model=ProjectScansResponse,
-    summary="List current user scans",
-)
-async def list_current_user_scans(
-    project_key: Optional[str] = Query(None, description="Optional project key filter"),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=500),
-    current_user: CurrentUser = Depends(require_scan_permission),
-) -> ProjectScansResponse:
-    """Get scans created by the current authenticated user."""
-    try:
-        return sonarqube_scan_client.list_user_scans(
-            project_key=project_key,
-            page=page,
-            page_size=page_size,
-            user_id=current_user.user_id,
-            api_key_id=current_user.api_key_id,
-            api_project_id=current_user.project_id,
-        )
-    except grpc.RpcError as exc:
-        raise_for_grpc_error(exc)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail="Failed to list current user scans") from exc
-
-
-@router.get(
-    "/scans/me/ids",
-    response_model=UserScanTaskRefsResponse,
-    summary="List current user scan IDs",
-)
-async def list_current_user_scan_ids(
-    project_key: Optional[str] = Query(None, description="Optional project key filter"),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=500),
-    current_user: CurrentUser = Depends(require_scan_permission),
-) -> UserScanTaskRefsResponse:
-    """Get lightweight scan references for the current authenticated user."""
-    try:
-        response = sonarqube_scan_client.list_user_scans(
-            project_key=project_key,
-            page=page,
-            page_size=page_size,
-            user_id=current_user.user_id,
-            api_key_id=current_user.api_key_id,
-            api_project_id=current_user.project_id,
-        )
-    except grpc.RpcError as exc:
-        raise_for_grpc_error(exc)
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail="Failed to list current user scan IDs") from exc
-
-    tasks = [
-        ScanTaskRefResponse(scan_id=item.scan_id, project_key=item.project_key)
-        for item in response.scans
-    ]
-    project_keys = sorted({item.project_key for item in tasks if item.project_key})
-    return UserScanTaskRefsResponse(
-        tasks=tasks,
-        project_keys=project_keys,
-        page=response.page,
-        page_size=response.page_size,
-        total=response.total,
-    )
 
 
 @router.get(
