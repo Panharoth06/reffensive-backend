@@ -164,6 +164,8 @@ async def get_scan_detail(
         )
     except grpc.RpcError as exc:
         raise_for_grpc_error(exc)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to get scan detail") from exc
 
@@ -187,6 +189,8 @@ async def get_scan_status(
         )
     except grpc.RpcError as exc:
         raise_for_grpc_error(exc)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to get scan status") from exc
 
@@ -210,6 +214,8 @@ async def stop_scan(
         )
     except grpc.RpcError as exc:
         raise_for_grpc_error(exc)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to stop scan") from exc
 
@@ -233,6 +239,8 @@ async def retry_scan(
         )
     except grpc.RpcError as exc:
         raise_for_grpc_error(exc)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to retry scan") from exc
 
@@ -260,6 +268,8 @@ async def stream_scan_progress(
         )
     except grpc.RpcError as exc:
         raise_for_grpc_error(exc)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to authorize scan stream") from exc
 
@@ -301,6 +311,8 @@ async def get_scan_logs(
         )
     except grpc.RpcError as exc:
         raise_for_grpc_error(exc)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to get scan logs") from exc
 
@@ -361,6 +373,8 @@ async def get_scan_summary(
         )
     except grpc.RpcError as exc:
         raise_for_grpc_error(exc)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to get scan summary") from exc
 
@@ -397,6 +411,8 @@ async def list_issues(
         )
     except grpc.RpcError as exc:
         raise_for_grpc_error(exc)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to list issues") from exc
 
@@ -422,6 +438,8 @@ async def get_issue_detail(
         )
     except grpc.RpcError as exc:
         raise_for_grpc_error(exc)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to get issue detail") from exc
 
@@ -447,6 +465,8 @@ async def get_file_issues(
         )
     except grpc.RpcError as exc:
         raise_for_grpc_error(exc)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to get file issues") from exc
 
@@ -500,6 +520,8 @@ async def list_dependencies(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except grpc.RpcError as exc:
         raise_for_grpc_error(exc)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to list dependencies") from exc
 
@@ -523,6 +545,8 @@ async def get_dependency_summary(
         )
     except grpc.RpcError as exc:
         raise_for_grpc_error(exc)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to get dependency summary") from exc
 
@@ -555,6 +579,8 @@ async def list_project_scans(
         )
     except grpc.RpcError as exc:
         raise_for_grpc_error(exc)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to list project scans") from exc
 
@@ -578,5 +604,7 @@ async def delete_scan(
         )
     except grpc.RpcError as exc:
         raise_for_grpc_error(exc)
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail="Failed to delete scan") from exc

@@ -9,6 +9,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import pytest
+from fastapi import HTTPException
 
 from app.dependencies.auth import CurrentUser
 from app.routers import scanner as scanner_router
@@ -109,3 +110,20 @@ async def test_scan_action_routes_forward_identity(monkeypatch: pytest.MonkeyPat
         "retry": ("scan-1", "user-1", None, None),
         "delete": ("scan-1", "user-1", None, None),
     }
+
+
+@pytest.mark.asyncio
+async def test_delete_scan_preserves_http_exception(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _fake_delete_scan(scan_id: str, *, user_id, api_key_id, api_project_id):
+        raise HTTPException(status_code=400, detail="running scans must be stopped before delete")
+
+    monkeypatch.setattr(scanner_router.sonarqube_scan_client, "delete_scan", _fake_delete_scan)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await scanner_router.delete_scan(
+            scan_id="scan-1",
+            current_user=_make_current_user(),
+        )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "running scans must be stopped before delete"

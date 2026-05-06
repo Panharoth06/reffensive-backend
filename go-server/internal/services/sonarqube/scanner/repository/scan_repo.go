@@ -225,6 +225,15 @@ func (r *ScanRepository) Delete(ctx context.Context, id string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+	if err := r.queries.DeleteScanPhasesByScan(ctx, scanID); err != nil {
+		return 0, err
+	}
+	if err := r.queries.DeleteScanDependencyResultsByScan(ctx, scanID); err != nil {
+		return 0, err
+	}
+	if err := r.queries.DeleteScanSonarResultsByScan(ctx, scanID); err != nil {
+		return 0, err
+	}
 	return r.queries.DeleteUnifiedScan(ctx, scanID)
 }
 

@@ -59,6 +59,10 @@ RETURNING *;
 SELECT * FROM scan_sonar_results
 WHERE scan_id = $1;
 
+-- name: DeleteScanSonarResultsByScan :exec
+DELETE FROM scan_sonar_results
+WHERE scan_id = $1;
+
 -- name: CreateUnifiedScan :one
 INSERT INTO scans (
     project_key,
@@ -86,6 +90,14 @@ WHERE id = $1;
 -- name: DeleteUnifiedScan :execrows
 DELETE FROM scans
 WHERE id = $1;
+
+-- name: DeleteScanDependencyResultsByScan :exec
+DELETE FROM scan_dependency_results
+WHERE scan_id = $1;
+
+-- name: DeleteScanPhasesByScan :exec
+DELETE FROM scan_phases
+WHERE scan_id = $1;
 
 -- name: UpdateUnifiedScanProgress :one
 UPDATE scans

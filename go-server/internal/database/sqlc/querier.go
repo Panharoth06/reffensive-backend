@@ -49,7 +49,10 @@ type Querier interface {
 	DeleteProviderAccount(ctx context.Context, id uuid.UUID) error
 	DeleteReport(ctx context.Context, reportID uuid.UUID) error
 	DeleteRepository(ctx context.Context, id uuid.UUID) error
+	DeleteScanDependencyResultsByScan(ctx context.Context, scanID uuid.UUID) error
 	DeleteScanJob(ctx context.Context, jobID uuid.UUID) error
+	DeleteScanPhasesByScan(ctx context.Context, scanID uuid.UUID) error
+	DeleteScanSonarResultsByScan(ctx context.Context, scanID uuid.UUID) error
 	DeleteTarget(ctx context.Context, arg DeleteTargetParams) error
 	DeleteTool(ctx context.Context, toolID uuid.UUID) error
 	DeleteToolCategory(ctx context.Context, categoryID uuid.UUID) error

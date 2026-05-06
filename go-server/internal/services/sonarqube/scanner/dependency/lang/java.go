@@ -47,12 +47,12 @@ func ScanJava(ctx context.Context, sourceDir string) ([]*dependency.Finding, err
 		return []*dependency.Finding{}, nil
 	}
 
+	gradleCommand, gradleArgs := resolveGradleAnalyzeCommand(filepath.Dir(gradlePath))
 	_, stderr, code, err := runCommand(
 		ctx,
 		filepath.Dir(gradlePath),
-		"gradle",
-		"dependencyCheckAnalyze",
-		"-DfailOnError=false",
+		gradleCommand,
+		gradleArgs...,
 	)
 	if err != nil && code != 0 {
 		return nil, commandError("gradle dependencyCheckAnalyze", code, err, stderr)
@@ -80,4 +80,11 @@ func ScanJava(ctx context.Context, sourceDir string) ([]*dependency.Finding, err
 		}
 	}
 	return findings, nil
+}
+
+func resolveGradleAnalyzeCommand(workDir string) (string, []string) {
+	if firstExistingFile(filepath.Join(workDir, "gradlew")) != "" {
+		return "bash", []string{"./gradlew", "--no-daemon", "dependencyCheckAnalyze", "-DfailOnError=false"}
+	}
+	return "gradle", []string{"--no-daemon", "dependencyCheckAnalyze", "-DfailOnError=false"}
 }

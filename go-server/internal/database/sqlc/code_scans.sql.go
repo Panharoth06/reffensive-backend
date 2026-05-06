@@ -193,6 +193,36 @@ func (q *Queries) DeleteUnifiedScan(ctx context.Context, id uuid.UUID) (int64, e
 	return result.RowsAffected(), nil
 }
 
+const deleteScanDependencyResultsByScan = `-- name: DeleteScanDependencyResultsByScan :exec
+DELETE FROM scan_dependency_results
+WHERE scan_id = $1
+`
+
+func (q *Queries) DeleteScanDependencyResultsByScan(ctx context.Context, scanID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteScanDependencyResultsByScan, scanID)
+	return err
+}
+
+const deleteScanPhasesByScan = `-- name: DeleteScanPhasesByScan :exec
+DELETE FROM scan_phases
+WHERE scan_id = $1
+`
+
+func (q *Queries) DeleteScanPhasesByScan(ctx context.Context, scanID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteScanPhasesByScan, scanID)
+	return err
+}
+
+const deleteScanSonarResultsByScan = `-- name: DeleteScanSonarResultsByScan :exec
+DELETE FROM scan_sonar_results
+WHERE scan_id = $1
+`
+
+func (q *Queries) DeleteScanSonarResultsByScan(ctx context.Context, scanID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteScanSonarResultsByScan, scanID)
+	return err
+}
+
 const getRepositorySnapshotByCommit = `-- name: GetRepositorySnapshotByCommit :one
 SELECT id, repository_id, branch_name, commit_sha, source_snapshot_hash, dependency_hash, created_at FROM repository_snapshots
 WHERE repository_id = $1 AND commit_sha = $2
